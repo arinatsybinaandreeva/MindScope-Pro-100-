@@ -1,6 +1,6 @@
 # 🧠 MindScope Pro — 100+ психологических тестов
 
-Ссылка на игру: https://arinatsybinaandreeva.github.io/MindScopePro-100/
+Ссылка на игру: https://arinatsybinaandreeva.github.io/MindScopePro100/
 
 Как играть:
 1. Перейдите по ссылке
