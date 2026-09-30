@@ -1,0 +1,2779 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>Психологические тесты</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0B0B14;--card:#141424;--accent:#6366F1;--green:#10B981;--yellow:#F59E0B;--red:#EF4444;--text:#F1F5F9;--muted:#94A3B8;--radius:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:70px;-webkit-tap-highlight-color:transparent}
+.app{max-width:520px;margin:0 auto;padding:16px}
+.screen{display:none;animation:fade .2s}
+.screen.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h1{font-size:1.5rem;margin-bottom:8px}
+h2{font-size:1.2rem;margin-bottom:6px}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,.06)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:none;border-radius:10px;font-weight:600;font-size:.9rem;cursor:pointer;width:100%;font-family:inherit;background:var(--accent);color:#fff;transition:.15s}
+.btn-outline{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--accent)}
+.btn-sm{width:auto;padding:6px 12px;font-size:.8rem}
+.tag{display:inline-block;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600}
+.tag-green{background:rgba(16,185,129,.15);color:#34D399}
+.tag-yellow{background:rgba(245,158,11,.15);color:#FBBF24}
+.tag-red{background:rgba(239,68,68,.15);color:#F87171}
+.tag-blue{background:rgba(99,102,241,.15);color:#818CF8}
+.test-card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:8px;cursor:pointer;border:1px solid transparent;transition:.2s}
+.test-card:active{border-color:var(--accent)}
+.emoji{font-size:2rem}
+.progress-bar{height:4px;background:#2D2D4A;border-radius:4px;margin:12px 0;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);width:0%;transition:width .3s}
+.chart-container{height:180px;margin:16px 0}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:520px;margin:0 auto;background:rgba(11,11,20,.95);backdrop-filter:blur(20px);display:flex;justify-content:space-around;padding:8px;border-top:1px solid rgba(255,255,255,.05)}
+.nav-item{background:none;border:none;color:var(--muted);font-size:.7rem;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;cursor:pointer;padding:6px 12px;border-radius:12px}
+.nav-item.active{color:#A78BFA;background:rgba(139,92,246,.1)}
+.option-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:12px;border-radius:10px;font-size:.9rem;cursor:pointer;margin-bottom:6px;text-align:left;width:100%;font-family:inherit;line-height:1.4}
+.option-btn:active{background:rgba(99,102,241,.2);border-color:var(--accent)}
+.timeline-item{background:rgba(255,255,255,.03);padding:10px;border-radius:10px;margin-bottom:8px;font-size:.85rem}
+.text-muted{color:var(--muted);font-size:.8rem}
+.overdue-alert{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.qtext{font-size:1.05rem;margin:12px 0;line-height:1.55;word-wrap:break-word}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="screen active" id="homeScreen">
+    <h1>🧠 Психологические тесты</h1>
+    <p class="text-muted" style="margin-bottom:12px;">Все тесты</p>
+    <div id="overdueAlert"></div>
+    <div id="testList"></div>
+  </div>
+  <div class="screen" id="testScreen">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <button class="btn btn-sm btn-outline" id="exitTestBtn">← Выйти</button>
+      <span id="testTitle" style="font-weight:600;"></span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div id="questionArea"></div>
+    <button class="btn btn-sm btn-outline" id="prevBtn" style="margin-top:12px;display:none;">← Назад</button>
+  </div>
+  <div class="screen" id="profileScreen">
+    <h1>📊 Психологический портрет</h1>
+    <div id="profileContent"></div>
+  </div>
+  <div class="screen" id="historyScreen">
+    <h1>📅 История и графики</h1>
+    <div id="historyContent"></div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-screen="home">📋<span>Тесты</span></button>
+    <button class="nav-item" data-screen="profile">📊<span>Портрет</span></button>
+    <button class="nav-item" data-screen="history">📅<span>История</span></button>
+  </nav>
+</div>
+
+<script>
+// ============================================================
+// ГЛОБАЛЬНЫЙ МАССИВ ТЕСТОВ. КАЖДАЯ ЧАСТЬ ДОБАВЛЯЕТ ТЕСТЫ ЧЕРЕЗ TESTS.push(...)
+// ============================================================
+window.TESTS = window.TESTS || [];
+
+// ============================================================
+// ЛОГИКА ПРИЛОЖЕНИЯ (НЕ ТРОГАТЬ)
+// ============================================================
+(function(){
+const TESTS = window.TESTS;
+
+let currentScreen='home';
+let currentTest=null;
+let currentQuestion=0;
+let answers={};
+let results=JSON.parse(localStorage.getItem('mindscope_results')||'{}');
+let history=JSON.parse(localStorage.getItem('mindscope_history')||'[]');
+
+function saveData(){
+  localStorage.setItem('mindscope_results',JSON.stringify(results));
+  localStorage.setItem('mindscope_history',JSON.stringify(history));
+}
+
+function navigateTo(screen){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screen+'Screen').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-screen="${screen}"]`)?.classList.add('active');
+  currentScreen=screen;
+  if(screen==='home') renderHome();
+  else if(screen==='profile') renderProfile();
+  else if(screen==='history') renderHistory();
+  window.scrollTo(0,0);
+}
+
+function isOverdue(test){
+  const last=results[test.id];
+  if(!last) return true;
+  const days=Math.floor((Date.now()-new Date(last.date))/(1000*60*60*24));
+  return days>=test.freqDays;
+}
+
+function renderHome(){
+  const overdue=TESTS.filter(t=>isOverdue(t));
+  document.getElementById('overdueAlert').innerHTML = overdue.length
+    ? `<div class="overdue-alert">⚠️ ${overdue.length} тестов требуют обновления</div>` : '';
+  let html='';
+  TESTS.forEach(test=>{
+    const last=results[test.id];
+    const lastDate=last?new Date(last.date).toLocaleDateString('ru-RU'):null;
+    const overdueTest=isOverdue(test);
+    html+=`
+      <div class="test-card" onclick="startTest('${test.id}')">
+        <div class="emoji">${test.emoji}</div>
+        <div style="flex:1; word-wrap:break-word;">
+          <div style="font-weight:600;">${test.name}</div>
+          <div class="text-muted">${test.desc}</div>
+          <div style="margin-top:6px;">
+            ${lastDate?`<span class="tag ${overdueTest?'tag-red':'tag-green'}">${overdueTest?'⏰ Просрочен':'✅ '+lastDate}</span>`:'<span class="tag tag-blue">Новый</span>'}
+            <span class="text-muted" style="margin-left:6px;">△ ${test.freqDays} дн.</span>
+          </div>
+        </div>
+      </div>`;
+  });
+  document.getElementById('testList').innerHTML=html;
+}
+
+window.startTest=function(id){
+  currentTest=TESTS.find(t=>t.id===id);
+  if(!currentTest) return;
+  currentQuestion=0;
+  answers={};
+  document.getElementById('testTitle').textContent=currentTest.name;
+  navigateTo('test');
+  renderQuestion();
+};
+
+function renderQuestion(){
+  const test=currentTest;
+  const q=test.questions[currentQuestion];
+  document.getElementById('progressFill').style.width=((currentQuestion/test.questions.length)*100)+'%';
+  document.getElementById('prevBtn').style.display=currentQuestion>0?'inline-flex':'none';
+  let html=`<div class="card"><p class="text-muted">Вопрос ${currentQuestion+1}/${test.questions.length}</p>
+    <p class="qtext">${q.text}</p>`;
+  if(test.type==='yn'){
+    html+=`<button class="btn btn-outline" style="margin-bottom:8px;" onclick="answerQuestion(true)">Да</button>`;
+    html+=`<button class="btn btn-outline" onclick="answerQuestion(false)">Нет</button>`;
+  } else {
+    test.scale.forEach((label,idx)=>{
+      html+=`<button class="option-btn" onclick="answerQuestion(${idx})">${label}</button>`;
+    });
+  }
+  html+=`</div>`;
+  document.getElementById('questionArea').innerHTML=html;
+}
+
+window.answerQuestion=function(value){
+  answers[currentQuestion]=value;
+  currentQuestion++;
+  if(currentQuestion>=currentTest.questions.length) finishTest();
+  else renderQuestion();
+};
+
+function finishTest(){
+  const test=currentTest;
+  let scores={};
+  test.questions.forEach((q,idx)=>{
+    const trait=q.trait||'total';
+    if(!scores[trait]) scores[trait]=0;
+    let val=answers[idx];
+    if(test.type==='yn'){
+      let num = val===true ? 1 : 0;
+      if(q.reverse) num = 1-num;
+      scores[trait]+=num;
+    } else {
+      let num = val;
+      if(q.reverse) num = (test.scale.length-1) - num;
+      scores[trait]+=num;
+    }
+  });
+  const result={testId:test.id,testName:test.name,scores,date:new Date().toISOString()};
+  results[test.id]=result;
+  history.unshift(result);
+  if(history.length>500) history.length=500;
+  saveData();
+
+  const hasTraits=test.questions.some(q=>q.trait&&q.trait!=='total');
+  const interpInput=(test.type==='yn'||hasTraits)?scores:(scores.total||0);
+  const interpretation=test.interpret(interpInput);
+
+  let html='<div class="card"><h2>✅ Результат</h2>';
+  interpretation.forEach(item=>{
+    html+=`
+      <div style="margin:12px 0; padding:12px; background:rgba(255,255,255,.03); border-radius:12px;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+          <strong>${item.name}</strong>
+          ${item.max>0?`<span class="tag tag-${item.color}">${item.value} / ${item.max}</span>`:''}
+        </div>
+        <p style="font-size:.9rem; margin-top:6px; word-wrap:break-word;">${item.desc}</p>
+      </div>`;
+  });
+  html+=`<button class="btn btn-primary" onclick="navigateTo('profile')" style="margin-top:10px;">📊 К портрету</button>`;
+  html+=`<button class="btn btn-outline" onclick="navigateTo('home')" style="margin-top:6px;">📋 К тестам</button></div>`;
+  document.getElementById('questionArea').innerHTML=html;
+}
+
+function renderProfile(){
+  const done=Object.values(results);
+  if(!done.length){
+    document.getElementById('profileContent').innerHTML='<p class="text-muted">Пройдите тесты для построения портрета.</p>';
+    return;
+  }
+  let green=[],yellow=[],red=[];
+  done.forEach(r=>{
+    const test=TESTS.find(t=>t.id===r.testId);
+    if(!test) return;
+    const hasTraits=test.questions.some(q=>q.trait&&q.trait!=='total');
+    const interpInput=(test.type==='yn'||hasTraits)?r.scores:(r.scores.total||0);
+    const interp=test.interpret(interpInput);
+    interp.forEach(i=>{
+      const entry={...i,testName:test.name};
+      if(i.color==='green') green.push(entry);
+      else if(i.color==='yellow') yellow.push(entry);
+      else red.push(entry);
+    });
+  });
+  document.getElementById('profileContent').innerHTML=`
+    <div class="card"><h3>🟢 Сильные стороны (${green.length})</h3>${green.map(i=>`<p style="margin:6px 0;">${i.testName} — <b>${i.name}</b>: ${i.desc}</p>`).join('')||'<p class="text-muted">Нет</p>'}</div>
+    <div class="card"><h3>🟡 Зоны внимания (${yellow.length})</h3>${yellow.map(i=>`<p style="margin:6px 0;">${i.testName} — <b>${i.name}</b>: ${i.desc}</p>`).join('')||'<p class="text-muted">Нет</p>'}</div>
+    <div class="card"><h3>🔴 Требует проработки (${red.length})</h3>${red.map(i=>`<p style="margin:6px 0;">${i.testName} — <b>${i.name}</b>: ${i.desc}</p>`).join('')||'<p class="text-muted">Нет</p>'}${red.length?'<p style="color:#F87171;font-size:.8rem;margin-top:8px;">⚠️ Рекомендована консультация психолога</p>':''}</div>
+  `;
+}
+
+function renderHistory(){
+  if(!history.length){
+    document.getElementById('historyContent').innerHTML='<p class="text-muted">История пуста.</p>';
+    return;
+  }
+  const grouped={};
+  history.forEach(h=>{
+    if(!grouped[h.testId]) grouped[h.testId]=[];
+    grouped[h.testId].push(h);
+  });
+  let html='<div class="card"><h3>📈 Динамика по тестам</h3>';
+  Object.entries(grouped).forEach(([tid,items])=>{
+    if(items.length<2) return;
+    const test=TESTS.find(t=>t.id===tid);
+    if(!test) return;
+    html+=`<p style="margin:10px 0 4px;">${test.emoji} ${test.name}</p><div class="chart-container"><canvas id="chart-${tid}"></canvas></div>`;
+  });
+  html+='</div><div class="card"><h3>🕐 Хронология</h3>';
+  history.slice(0,30).forEach(h=>{
+    const test=TESTS.find(t=>t.id===h.testId);
+    if(!test) return;
+    const hasTraits=test.questions.some(q=>q.trait&&q.trait!=='total');
+    const interpInput=(test.type==='yn'||hasTraits)?h.scores:(h.scores.total||0);
+    const interp=test.interpret(interpInput);
+    html+=`<div class="timeline-item">
+      <div class="text-muted">📅 ${new Date(h.date).toLocaleString('ru-RU')}</div>
+      <strong>${h.testName}</strong>
+      <div style="margin-top:4px;">${interp.map(i=>`<span class="tag tag-${i.color}" style="margin-right:4px;margin-bottom:4px;">${i.name}: ${i.max>0?i.value+'/'+i.max:i.color==='green'?'✓':'!'}</span>`).join('')}</div>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('historyContent').innerHTML=html;
+
+  setTimeout(()=>{
+    Object.entries(grouped).forEach(([tid,items])=>{
+      if(items.length<2) return;
+      const canvas=document.getElementById('chart-'+tid);
+      if(!canvas) return;
+      const sorted=[...items].sort((a,b)=>new Date(a.date)-new Date(b.date));
+      const key=Object.keys(sorted[0].scores)[0]||'total';
+      new Chart(canvas,{
+        type:'line',
+        data:{
+          labels:sorted.map(i=>new Date(i.date).toLocaleDateString('ru-RU')),
+          datasets:[{data:sorted.map(i=>i.scores[key]||0),borderColor:'#818CF8',backgroundColor:'rgba(129,140,248,.1)',fill:true,tension:.4,pointRadius:3}]
+        },
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+      });
+    });
+  },100);
+}
+
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click',()=>navigateTo(btn.dataset.screen));
+});
+document.getElementById('exitTestBtn').addEventListener('click',()=>navigateTo('home'));
+document.getElementById('prevBtn').addEventListener('click',()=>{
+  if(currentQuestion>0){
+    currentQuestion--;
+    delete answers[currentQuestion];
+    renderQuestion();
+  }
+});
+
+renderHome();
+window.navigateTo=navigateTo;
+})();
+</script>
+
+<!-- ============================================================
+     ЗДЕСЬ БУДУТ ВСТАВЛЯТЬСЯ ЧАСТИ С ТЕСТАМИ.
+     Каждая часть — это отдельный <script>, который добавляет тесты.
+     Копируйте их ПО ОЧЕРЕДИ В КОНЕЦ ФАЙЛА, ПЕРЕД </body>
+     ============================================================ -->
+<script>
+TESTS.push(
+{
+  id:'iri', cat:'Отношения', emoji:'💝',
+  name:'Индекс эмпатии (IRI, Дэвис)',
+  freqDays:180,
+  desc:'Когнитивная и эмоциональная эмпатия',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто представляю себе, как бы я чувствовал себя на месте другого человека, когда с ним происходит что-то важное.', trait:'FS'},
+    {text:'Обычно я искренне сочувствую людям, у которых случилась беда, даже если они мне незнакомы.', trait:'EC'},
+    {text:'Иногда мне бывает трудно посмотреть на ситуацию с точки зрения другого человека, если я уверен в своей правоте.', trait:'PT', reverse:true},
+    {text:'Когда я вижу, что кого-то несправедливо обижают, я чувствую жалость и желание защитить.', trait:'EC'},
+    {text:'Я способен понять чувства другого человека, даже если я не согласен с его действиями.', trait:'PT'},
+    {text:'Меня часто трогают истории других людей — даже те, которые я вижу в новостях или читаю в книгах.', trait:'EC'},
+    {text:'Мне легко представить себя на месте персонажа фильма или книги и переживать его эмоции.', trait:'FS'},
+    {text:'Мне трудно оставаться равнодушным, когда кто-то рядом со мной плачет или переживает.', trait:'EC'},
+    {text:'В споре я стараюсь понять точку зрения другого, а не только доказать свою правоту.', trait:'PT'},
+    {text:'Я искренне сопереживаю, когда близкий человек сталкивается с трудностями, даже если я не могу помочь.', trait:'EC'}
+  ],
+  interpret:(s)=>{
+    const fs=s.FS||0, ec=s.EC||0, pt=s.PT||0, total=fs+ec+pt;
+    return [
+      {name:'Фантазия (FS)', value:fs, max:20, color: fs>=14?'green':fs>=8?'yellow':'yellow',
+       desc: fs>=14?'Высокая — вы легко представляете себя на месте других, хорошо понимаете чужие переживания через воображение.':fs>=8?'Средняя — вы можете представить себя на месте другого, но не всегда.':'Низкая — вам трудно представить чувства других через воображение.'},
+      {name:'Эмпатическая забота (EC)', value:ec, max:30, color: ec>=22?'green':ec>=12?'yellow':'red',
+       desc: ec>=22?'Высокая — вы искренне сопереживаете другим, вам свойственна эмоциональная отзывчивость и желание помочь.':ec>=12?'Средняя — вы сопереживаете, но иногда держите дистанцию.':'Низкая — вам может быть трудно эмоционально откликаться на переживания других.'},
+      {name:'Принятие перспективы (PT)', value:pt, max:20, color: pt>=14?'green':pt>=8?'yellow':'yellow',
+       desc: pt>=14?'Высокое — вы хорошо понимаете точку зрения других людей, даже когда не согласны с ними.':pt>=8?'Среднее — вы иногда встаёте на позицию другого, но не всегда.':'Низкое — вам может быть сложно увидеть ситуацию глазами другого.'},
+      {name:'Общая эмпатия', value:total, max:70, color: total>=50?'green':total>=30?'yellow':'red',
+       desc: total>=50?'Высокая — вы высокоэмпатичный человек. Это ценнейший ресурс в общении, работе и отношениях.':total>=30?'Средний уровень эмпатии — вы способны к сопереживанию, но иногда сдерживаете эмоции.':'Низкая эмпатия — вам стоит развивать навык активного слушания и интереса к чувствам других.'}
+    ];
+  }
+},
+{
+  id:'rosenberg', cat:'Личность', emoji:'🪞',
+  name:'Шкала самооценки Розенберга',
+  freqDays:30,
+  desc:'Общий уровень самоуважения и самопринятия',
+  type:'likert',
+  scale:['Полностью не согласен','Скорее не согласен','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'В целом я считаю себя достойным человеком, по крайней мере не хуже других людей.', trait:'total'},
+    {text:'Я чувствую, что у меня есть целый ряд хороших качеств и достоинств.', trait:'total'},
+    {text:'В целом я склонен считать себя неудачником и разочарованием для окружающих.', trait:'total', reverse:true},
+    {text:'Я способен делать многие вещи так же хорошо, как и большинство других людей.', trait:'total'},
+    {text:'Мне кажется, что мне особенно нечем гордиться в жизни.', trait:'total', reverse:true},
+    {text:'Я отношусь к себе положительно и с уважением, принимаю себя.', trait:'total'},
+    {text:'В целом я доволен собой как личностью и своим поведением.', trait:'total'},
+    {text:'Мне бы очень хотелось больше уважать себя и ценить свои достижения.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самооценка', value:total, max:32, color: total>=24?'green':total>=16?'yellow':'red',
+      desc: total>=24?'Высокая самооценка — вы принимаете себя, уверены в своих силах, спокойно относитесь к недостаткам.':total>=16?'Средняя самооценка — есть зоны, где вы сомневаетесь в себе, но в целом отношение к себе положительное.':'Низкая самооценка — вы часто себя критикуете и недооцениваете. Рекомендуется работа с психологом.'}];
+  }
+},
+{
+  id:'ucla', cat:'Отношения', emoji:'🏝️',
+  name:'Шкала одиночества (UCLA)',
+  freqDays:30,
+  desc:'Субъективное чувство изоляции',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто'],
+  questions:[
+    {text:'Как часто вы чувствуете, что вам не с кем поговорить по душам, поделиться сокровенным?', trait:'total'},
+    {text:'Как часто вы ощущаете себя частью группы друзей или близких людей?', trait:'total', reverse:true},
+    {text:'Как часто вы чувствуете, что вам не хватает общения с людьми?', trait:'total'},
+    {text:'Как часто вы ощущаете себя изолированным от окружающих, как будто вы вне круга?', trait:'total'},
+    {text:'Как часто вы легко находите компанию, когда у вас есть желание с кем-то провести время?', trait:'total', reverse:true},
+    {text:'Как часто ваши отношения с людьми кажутся вам поверхностными, без настоящей глубины?', trait:'total'},
+    {text:'Как часто вы ощущаете, что вас никто по-настоящему не знает и не понимает?', trait:'total'},
+    {text:'Как часто вы чувствуете себя в кругу близких людей, ощущаете их тепло и поддержку?', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Одиночество', value:total, max:24, color: total>=16?'red':total>=10?'yellow':'green',
+      desc: total>=16?'Высокое чувство одиночества. Возможно, стоит расширить круг общения и обратиться к психологу.':total>=10?'Умеренное чувство одиночества — есть близкие, но не хватает глубины общения.':'Низкое — вы чувствуете связь с людьми, вам комфортно в окружении.'}];
+  }
+},
+{
+  id:'self_compassion', cat:'Эмоции', emoji:'🤗',
+  name:'Шкала самосострадания (SCS)',
+  freqDays:30,
+  desc:'Доброе и принимающее отношение к себе',
+  type:'likert',
+  scale:['Почти никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Когда мне плохо, я проявляю к себе заботу и доброту, как к близкому другу.', trait:'total'},
+    {text:'Я принимаю свои недостатки и слабости, понимая, что они есть у всех людей.', trait:'total'},
+    {text:'Когда я терплю неудачу, я напоминаю себе, что трудности — это часть человеческой жизни.', trait:'total'},
+    {text:'Я часто критикую себя за ошибки и ругаю себя строже, чем заслуживаю.', trait:'total', reverse:true},
+    {text:'Когда я расстроен, мне кажется, что я один такой, а все остальные справляются лучше.', trait:'total', reverse:true},
+    {text:'В трудные моменты я стараюсь поддержать себя так же, как поддержал бы друга.', trait:'total'},
+    {text:'Я понимаю, что боль и неудачи — это часть общего человеческого опыта, а не только моя проблема.', trait:'total'},
+    {text:'Я строг к себе, когда что-то не получается, и мне сложно проявить к себе мягкость.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самосострадание', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы умеете быть добрым к себе. Это защищает от выгорания и повышает устойчивость к стрессу.':total>=18?'Среднее — иногда вы слишком строги к себе. Стоит развивать практику самоподдержки.':'Низкое — вы склонны к жёсткой самокритике. Рекомендуется работа с психологом.'}];
+  }
+},
+{
+  id:'erq', cat:'Эмоции', emoji:'🎭',
+  name:'Опросник эмоциональной регуляции (ERQ)',
+  freqDays:30,
+  desc:'Подавление экспрессии vs когнитивная переоценка',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Когда мне плохо, я стараюсь не показывать своих чувств другим людям.', trait:'SUP'},
+    {text:'Чтобы изменить своё настроение, я стараюсь изменить способ мышления о ситуации.', trait:'REAP'},
+    {text:'Я держу свои эмоции при себе и редко делюсь ими с кем-либо.', trait:'SUP'},
+    {text:'Когда я хочу меньше волноваться, я стараюсь думать о ситуации иначе, переосмысливать её.', trait:'REAP'},
+    {text:'Окружающие часто не догадываются, что я на самом деле чувствую.', trait:'SUP'},
+    {text:'Я стараюсь переосмыслить событие, чтобы изменить свои чувства по отношению к нему.', trait:'REAP'},
+    {text:'Я предпочитаю скрывать свои эмоции, чтобы не беспокоить других.', trait:'SUP'},
+    {text:'Мне помогает справиться изменить взгляд на ситуацию, найти в ней что-то полезное.', trait:'REAP'}
+  ],
+  interpret:(s)=>{
+    const sup=s.SUP||0, reap=s.REAP||0;
+    return [
+      {name:'Подавление экспрессии', value:sup, max:20, color: sup>=14?'yellow':'green',
+       desc: sup>=14?'Высокое — вы склонны скрывать эмоции. Это может повышать внутреннее напряжение и мешать близости.':'Умеренное — вы достаточно открыто выражаете эмоции.'},
+      {name:'Когнитивная переоценка', value:reap, max:20, color: reap>=14?'green':'yellow',
+       desc: reap>=14?'Высокая — вы используете эффективную стратегию: переосмысливаете ситуацию. Это защищает от стресса.':'Низкая — стоит развивать навык переоценки ситуации, чтобы управлять эмоциями.'}
+    ];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'gad7', cat:'Настроение', emoji:'😟',
+  name:'Шкала генерализованной тревоги (GAD-7)',
+  freqDays:14,
+  desc:'Скрининг тревожных расстройств',
+  type:'likert',
+  scale:['Совсем не беспокоило','Несколько дней','Больше половины дней','Почти каждый день'],
+  questions:[
+    {text:'Как часто за последние две недели вы чувствовали нервозность, тревогу или взвинченность?', trait:'total'},
+    {text:'Как часто вам было трудно перестать или контролировать своё беспокойство?', trait:'total'},
+    {text:'Как часто вы слишком сильно беспокоились о разных вещах?', trait:'total'},
+    {text:'Как часто вам было трудно расслабиться?', trait:'total'},
+    {text:'Как часто вам было настолько беспокойно, что трудно было усидеть на месте?', trait:'total'},
+    {text:'Как часто вы были раздражительны или вспыльчивы?', trait:'total'},
+    {text:'Как часто вы испытывали чувство, что может случиться что-то ужасное?', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Тревога (GAD-7)', value:total, max:21, color: total<=4?'green':total<=9?'yellow':'red',
+      desc: total<=4?'Минимальная тревога — состояние в пределах нормы.':total<=9?'Умеренная тревога. Наблюдайте за состоянием, обратитесь к психологу при ухудшении.':'Высокая тревога. Рекомендуется консультация специалиста (психолога или психотерапевта).'}];
+  }
+},
+{
+  id:'phq9', cat:'Настроение', emoji:'🌫️',
+  name:'Опросник здоровья пациента (PHQ-9)',
+  freqDays:14,
+  desc:'Скрининг депрессивных состояний',
+  type:'likert',
+  scale:['Совсем не беспокоило','Несколько дней','Больше половины дней','Почти каждый день'],
+  questions:[
+    {text:'Как часто за последние две недели вы испытывали отсутствие интереса или удовольствия от занятий?', trait:'total'},
+    {text:'Как часто вы чувствовали подавленность, тоску или безнадёжность?', trait:'total'},
+    {text:'Как часто у вас были трудности с засыпанием, плохой сон или, наоборот, слишком много сна?', trait:'total'},
+    {text:'Как часто вы чувствовали усталость или упадок сил?', trait:'total'},
+    {text:'Как часто у вас был плохой аппетит или, наоборот, вы переедали?', trait:'total'},
+    {text:'Как часто вы плохо думали о себе, чувствовали вину или считали себя неудачником?', trait:'total'},
+    {text:'Как часто вам было трудно сосредоточиться на делах (чтение, работа, разговор)?', trait:'total'},
+    {text:'Как часто вы двигались или говорили заметно медленнее, чем обычно, либо были чрезмерно возбуждены?', trait:'total'},
+    {text:'Как часто у вас возникали мысли о том, что лучше умереть или причинить себе вред?', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Депрессия (PHQ-9)', value:total, max:27, color: total<=4?'green':total<=9?'yellow':total<=14?'yellow':'red',
+      desc: total<=4?'Симптомы депрессии отсутствуют.':total<=9?'Лёгкая депрессия. Рекомендуется наблюдение.':total<=14?'Умеренная депрессия. Обратитесь к психологу.':'Умеренно-тяжёлая или тяжёлая депрессия. Срочно обратитесь к психотерапевту или психиатру.'}];
+  }
+},
+{
+  id:'pss10', cat:'Настроение', emoji:'📊',
+  name:'Шкала воспринимаемого стресса (PSS-10)',
+  freqDays:14,
+  desc:'Уровень стресса в повседневной жизни',
+  type:'likert',
+  scale:['Никогда','Почти никогда','Иногда','Довольно часто','Очень часто'],
+  questions:[
+    {text:'Как часто за последний месяц вы чувствовали, что не можете контролировать важные вещи в своей жизни?', trait:'total'},
+    {text:'Как часто вы чувствовали нервозность и стресс из-за неожиданных событий?', trait:'total'},
+    {text:'Как часто вы чувствовали уверенность в том, что справитесь с личными проблемами?', trait:'total', reverse:true},
+    {text:'Как часто вы чувствовали, что всё идёт так, как вы хотите?', trait:'total', reverse:true},
+    {text:'Как часто вы чувствовали, что трудности накапливаются и вы не можете их преодолеть?', trait:'total'},
+    {text:'Как часто вы чувствовали, что не можете справиться со всем, что должны делать?', trait:'total'},
+    {text:'Как часто вы злились из-за вещей, которые были вне вашего контроля?', trait:'total'},
+    {text:'Как часто вы чувствовали, что находитесь на вершине своих возможностей?', trait:'total', reverse:true},
+    {text:'Как часто вы злились из-за вещей, которые были вне вашего контроля?', trait:'total'},
+    {text:'Как часто вы чувствовали, что трудности настолько велики, что их невозможно преодолеть?', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Воспринимаемый стресс', value:total, max:40, color: total<=13?'green':total<=26?'yellow':'red',
+      desc: total<=13?'Низкий уровень стресса — вы хорошо справляетесь с жизненными нагрузками.':total<=26?'Умеренный стресс — обратите внимание на отдых и восстановление.':'Высокий стресс — рекомендуется работа с психологом и техники релаксации.'}];
+  }
+},
+{
+  id:'bdi', cat:'Настроение', emoji:'🌧️',
+  name:'Шкала депрессии Бека (BDI-II, адаптированная)',
+  freqDays:14,
+  desc:'Выраженность депрессивных симптомов',
+  type:'likert',
+  scale:['Никогда','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Я чувствую грусть, подавленность и тоску большую часть дня.', trait:'total'},
+    {text:'Я пессимистично смотрю в будущее и не жду ничего хорошего.', trait:'total'},
+    {text:'Я чувствую себя неудачником и часто вспоминаю свои прошлые провалы.', trait:'total'},
+    {text:'Я потерял интерес к занятиям, которые раньше приносили мне удовольствие.', trait:'total'},
+    {text:'Я испытываю чувство вины, мне кажется, что я подвожу других людей.', trait:'total'},
+    {text:'Я стал раздражительным, меня злят даже незначительные мелочи.', trait:'total'},
+    {text:'Мне трудно сосредоточиться на чтении, работе или разговоре.', trait:'total'},
+    {text:'Я быстро устаю, чувствую постоянный упадок сил и отсутствие энергии.', trait:'total'},
+    {text:'У меня проблемы со сном — трудно заснуть или просыпаюсь ночью и не могу уснуть.', trait:'total'},
+    {text:'У меня изменился аппетит — я ем слишком много или слишком мало.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Депрессия (Бек)', value:total, max:30, color: total<=7?'green':total<=16?'yellow':'red',
+      desc: total<=7?'Симптомы депрессии отсутствуют или минимальны.':total<=16?'Лёгкая депрессия. Наблюдайте за состоянием, при ухудшении обратитесь к психологу.':'Умеренная или тяжёлая депрессия. Настоятельно рекомендуется консультация психотерапевта.'}];
+  }
+},
+{
+  id:'stai', cat:'Настроение', emoji:'😰',
+  name:'Шкала тревоги Спилбергера (STAI)',
+  freqDays:30,
+  desc:'Ситуативная и личностная тревожность',
+  type:'likert',
+  scale:['Никогда','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'В данный момент я чувствую себя спокойно и уравновешенно.', trait:'S', reverse:true},
+    {text:'Сейчас мне кажется, что мне ничего не угрожает.', trait:'S', reverse:true},
+    {text:'В данный момент я нахожусь в напряжении, как будто что-то должно случиться.', trait:'S'},
+    {text:'Я испытываю сожаление о прошлом.', trait:'S'},
+    {text:'Сейчас я чувствую себя свободно и раскованно.', trait:'S', reverse:true},
+    {text:'Я расстроен и не могу найти себе места.', trait:'S'},
+    {text:'Я волнуюсь о возможных неудачах и неприятностях.', trait:'T'},
+    {text:'Я чувствую себя отдохнувшим и полным сил.', trait:'S', reverse:true},
+    {text:'Я встревожен и обеспокоен чем-то важным.', trait:'S'},
+    {text:'Я испытываю удовлетворение от текущей жизни.', trait:'S', reverse:true}
+  ],
+  interpret:(s)=>{
+    const sit=s.S||0, tr=s.T||0;
+    return [
+      {name:'Ситуативная тревожность', value:sit, max:32, color: sit>=24?'red':sit>=16?'yellow':'green',
+       desc: sit>=24?'Высокая тревога прямо сейчас. Возможно, вы находитесь в стрессовой ситуации.':sit>=16?'Умеренная тревога — обратите внимание на самочувствие и отдых.':'Низкая — вы спокойны в данный момент.'},
+      {name:'Личностная тревожность', value:tr, max:4, color: tr>=3?'yellow':'green',
+       desc: tr>=3?'Вы склонны к тревожности как черте характера — переживаете даже по незначительным поводам.':'Низкая склонность к тревоге — вы устойчивы к переживаниям.'}
+    ];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'eq', cat:'Эмоции', emoji:'🧘',
+  name:'Эмоциональный интеллект (EQ)',
+  freqDays:90,
+  desc:'Понимание и управление эмоциями',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо понимаю, какие именно эмоции я испытываю в данный момент и почему они возникли.', trait:'total'},
+    {text:'Я могу успокоиться, когда сильно расстроен или разозлён, не прибегая к вредным способам.', trait:'total'},
+    {text:'Я легко замечаю, когда человек рядом со мной расстроен или напряжён, даже если он не говорит об этом.', trait:'total'},
+    {text:'Я могу мотивировать себя на выполнение сложных и скучных задач, чтобы достичь цели.', trait:'total'},
+    {text:'Я понимаю, почему у меня возникла та или иная эмоция, и могу её назвать.', trait:'total'},
+    {text:'Я не позволяю сиюминутным эмоциям управлять моими важными решениями.', trait:'total'},
+    {text:'Я хорошо чувствую настроение других людей и могу подстроиться под него.', trait:'total'},
+    {text:'Я умею поддержать человека в трудной ситуации и подобрать нужные слова.', trait:'total'},
+    {text:'Я могу контролировать свои импульсы и не срываться на других, когда злюсь.', trait:'total'},
+    {text:'Мне легко выражать свои чувства словами, не стесняясь их.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Эмоциональный интеллект', value:total, max:50, color: total>=40?'green':total>=25?'yellow':'red',
+      desc: total>=40?'Высокий EQ — вы хорошо понимаете свои и чужие эмоции, умеете ими управлять. Это ресурс в отношениях и работе.':total>=25?'Средний EQ — есть зоны роста, особенно в распознавании и управлении эмоциями.':'Низкий EQ — стоит развивать эмоциональную грамотность: учиться замечать, называть и регулировать чувства.'}];
+  }
+},
+{
+  id:'rumination', cat:'Мышление', emoji:'🔄',
+  name:'Шкала руминации (RRS)',
+  freqDays:30,
+  desc:'Склонность к навязчивому повторению негативных мыслей',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Я постоянно прокручиваю в голове свои ошибки и промахи, даже если ситуация давно прошла.', trait:'total'},
+    {text:'Я не могу перестать думать о проблеме, даже когда очень хочу отвлечься на что-то другое.', trait:'total'},
+    {text:'Я анализирую каждую деталь неприятной ситуации, пытаясь понять, что пошло не так.', trait:'total'},
+    {text:'Из-за навязчивых мыслей мне часто трудно заснуть или я просыпаюсь ночью.', trait:'total'},
+    {text:'Я часто возвращаюсь к одной и той же тревожной мысли, и мне сложно её отпустить.', trait:'total'},
+    {text:'Мне сложно переключиться с негативных размышлений на что-то другое, даже когда я устал.', trait:'total'},
+    {text:'Я застреваю в переживаниях о прошлом и не могу двигаться дальше.', trait:'total'},
+    {text:'Мне кажется, что если я буду думать о проблеме дольше, я смогу её решить.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Руминация', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Высокая — навязчивые мысли усиливают стресс и мешают жить. Рекомендуется работа с психологом (КПТ).':total>=18?'Умеренная — иногда вы застреваете в мыслях, но в целом справляетесь.':'Низкая — вы легко отпускаете негативные мысли и переключаетесь.'}];
+  }
+},
+{
+  id:'catastrophizing', cat:'Мышление', emoji:'🌪️',
+  name:'Шкала катастрофизации',
+  freqDays:30,
+  desc:'Склонность преувеличивать угрозу',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Когда я думаю о будущем, я часто представляю самые худшие сценарии развития событий.', trait:'total'},
+    {text:'Даже небольшая проблема кажется мне настоящей катастрофой, которая разрушит всё.', trait:'total'},
+    {text:'В стрессовых ситуациях у меня возникает мысль: «Это конец, я не справлюсь».', trait:'total'},
+    {text:'Я склонен преувеличивать риски и опасности, которые могут произойти.', trait:'total'},
+    {text:'Я часто паникую заранее, ещё до того, как событие произошло.', trait:'total'},
+    {text:'Мне кажется, что если что-то пойдёт не так, то всё в моей жизни рухнет.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Катастрофизация', value:total, max:30, color: total>=22?'red':total>=14?'yellow':'green',
+      desc: total>=22?'Выраженная — вы склонны преувеличивать угрозы и рисовать ужасные сценарии. Это усиливает тревогу. Рекомендуется КПТ.':total>=14?'Умеренная — иногда вы преувеличиваете, но можете остановить себя.':'Низкая — вы реалистично оцениваете риски и сохраняете спокойствие.'}];
+  }
+},
+{
+  id:'metacognition', cat:'Мышление', emoji:'🔍',
+  name:'Метакогнитивный опросник (MCQ-30, краткий)',
+  freqDays:90,
+  desc:'Отношение к собственным мыслям',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я понимаю, что мысль — это всего лишь мысль, а не факт, и не всегда ей нужно верить.', trait:'total'},
+    {text:'Мне кажется, что я не могу контролировать свои мысли — они полностью управляют мной.', trait:'total', reverse:true},
+    {text:'Я могу наблюдать за своими мыслями со стороны, не вовлекаясь в них.', trait:'total'},
+    {text:'Некоторые мои мысли кажутся мне настолько опасными, что я должен их немедленно подавить.', trait:'total', reverse:true},
+    {text:'Я могу отпустить нежелательную мысль, не борясь с ней и не пытаясь её прогнать.', trait:'total'},
+    {text:'Если я не буду контролировать свои мысли, я не смогу справиться с жизнью.', trait:'total', reverse:true},
+    {text:'Я понимаю, что мысли приходят и уходят — это естественный процесс, и это нормально.', trait:'total'},
+    {text:'Я часто сливаюсь со своими мыслями и теряю способность смотреть на них со стороны.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Метакогниции', value:total, max:40, color: total>=28?'green':total>=18?'yellow':'red',
+      desc: total>=28?'Здоровые — вы умеете отделять себя от мыслей, не боретесь с ними и не придаёте им чрезмерного значения.':total>=18?'Смешанные — иногда вы сливаетесь с мыслями, иногда можете посмотреть на них со стороны.':'Дисфункциональные — вы переоцениваете значимость мыслей и пытаетесь их контролировать, что усиливает тревогу.'}];
+  }
+},
+{
+  id:'intolerance', cat:'Мышление', emoji:'❓',
+  name:'Шкала нетерпимости к неопределённости',
+  freqDays:90,
+  desc:'Насколько вы плохо переносите неизвестность',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Неопределённость вызывает у меня сильный стресс и тревогу, я стараюсь её избегать.', trait:'total'},
+    {text:'Мне нужно знать всё заранее, чтобы чувствовать себя спокойно и уверенно.', trait:'total'},
+    {text:'Я избегаю ситуаций, где не знаю, чего ожидать — это для меня невыносимо.', trait:'total'},
+    {text:'Я стараюсь планировать всё до мельчайших деталей, чтобы исключить неожиданности.', trait:'total'},
+    {text:'Сомнения и неясности для меня мучительны — я не могу расслабиться, пока не будет ясности.', trait:'total'},
+    {text:'Мне нужны гарантии, что всё пойдёт по плану, иначе я сильно тревожусь.', trait:'total'},
+    {text:'Неожиданные изменения в планах выбивают меня из колеи надолго.', trait:'total'},
+    {text:'Я предпочту плохую, но известную ситуацию, чем хорошую, но неизвестную.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Нетерпимость к неопределённости', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Высокая — неопределённость вызывает сильную тревогу, вы стремитесь всё контролировать. Рекомендуется работа с психологом.':total>=18?'Умеренная — иногда тревожитесь из-за неизвестности, но в целом справляетесь.':'Низкая — вы спокойно переносите неизвестность и гибко реагируете на изменения.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'perfectionism', cat:'Личность', emoji:'🎯',
+  name:'Шкала перфекционизма (краткая)',
+  freqDays:90,
+  desc:'Стремление к недостижимому идеалу',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я ставлю перед собой очень высокие стандарты, достичь которых почти невозможно.', trait:'total'},
+    {text:'Мне очень трудно простить себе ошибку, даже незначительную.', trait:'total'},
+    {text:'Я часто недоволен результатом своей работы, даже если окружающие говорят, что всё хорошо.', trait:'total'},
+    {text:'Я требую от других людей идеального исполнения и раздражаюсь, когда они этого не делают.', trait:'total'},
+    {text:'Мне кажется, что я никогда не делаю достаточно хорошо, чтобы быть довольным собой.', trait:'total'},
+    {text:'Я не могу делегировать задачи другим, потому что боюсь, что они сделают хуже, чем я.', trait:'total'},
+    {text:'Мой внутренний критик почти никогда не молчит — я постоянно себя оцениваю.', trait:'total'},
+    {text:'Я часто откладываю дела, потому что боюсь не сделать их идеально.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Перфекционизм', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Невротический перфекционизм — мешает жить, повышает тревогу и мешает расслабиться. Рекомендуется психотерапия.':total>=18?'Умеренный — вы стремитесь к качеству, но иногда слишком строги к себе.':'Здоровое стремление к качеству без крайностей — вы умеете принять несовершенство.'}];
+  }
+},
+{
+  id:'procrastination', cat:'Поведение', emoji:'⏰',
+  name:'Шкала прокрастинации Лэя',
+  freqDays:30,
+  desc:'Склонность откладывать важные дела',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто откладываю дела на последний момент, даже если знаю, что это плохо закончится.', trait:'total'},
+    {text:'Мне трудно начать важную задачу, даже если я понимаю, что она нужна и важна.', trait:'total'},
+    {text:'Я часто отвлекаюсь на соцсети или другие мелочи вместо того, чтобы заниматься делом.', trait:'total'},
+    {text:'Часто только приближающийся дедлайн заставляет меня реально взяться за работу.', trait:'total'},
+    {text:'Я часто жалею, что не начал раньше, когда времени было больше.', trait:'total'},
+    {text:'Я откладываю даже те дела, которые мне нравятся и приносят удовольствие.', trait:'total'},
+    {text:'Мне сложно планировать своё время и следовать составленному расписанию.', trait:'total'},
+    {text:'Я часто не довожу начатое до конца из-за того, что постоянно откладываю.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Прокрастинация', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Высокая — прокрастинация серьёзно мешает достигать целей. Попробуйте метод Pomodoro и работу с психологом.':total>=18?'Умеренная — вы иногда откладываете, но в целом справляетесь.':'Низкая — вы организованны и дисциплинированы.'}];
+  }
+},
+{
+  id:'self_control', cat:'Поведение', emoji:'🧊',
+  name:'Шкала самоконтроля',
+  freqDays:30,
+  desc:'Способность управлять импульсами и желаниями',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я умею отказываться от сиюминутных удовольствий ради достижения долгосрочных целей.', trait:'total'},
+    {text:'Я легко отказываюсь от вредных привычек, если понимаю, что они мне мешают.', trait:'total'},
+    {text:'Я контролирую свои эмоции, когда это необходимо, и не срываюсь на других.', trait:'total'},
+    {text:'Я редко поддаюсь соблазнам, о которых потом жалею.', trait:'total'},
+    {text:'Я делаю то, что нужно, даже если мне этого совсем не хочется.', trait:'total'},
+    {text:'Я дисциплинирован и последователен в своих действиях.', trait:'total'},
+    {text:'Я часто срываюсь и делаю то, чего не следовало, даже если давал себе слово.', trait:'total', reverse:true},
+    {text:'Мне легко следовать режиму, плану и расписанию.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самоконтроль', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокий — вы умеете управлять собой, это ресурс для достижения целей и хорошего самочувствия.':total>=18?'Средний — иногда вы поддаётесь импульсам, но в целом справляетесь.':'Низкий — импульсы управляют вами. Стоит развивать навык самоконтроля через практики осознанности.'}];
+  }
+},
+{
+  id:'self_care', cat:'Поведение', emoji:'🌿',
+  name:'Шкала заботы о себе',
+  freqDays:30,
+  desc:'Внимание к своим потребностям',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я высыпаюсь — сплю не менее 7-8 часов, и чувствую себя отдохнувшим.', trait:'total'},
+    {text:'Я правильно питаюсь, слежу за рационом и не пропускаю приёмы пищи.', trait:'total'},
+    {text:'Я регулярно занимаюсь физической активностью, чтобы поддерживать тело в тонусе.', trait:'total'},
+    {text:'Я умею отдыхать и восстанавливаться, не чувствуя при этом вины.', trait:'total'},
+    {text:'Я умею говорить «нет», когда это необходимо для моего благополучия.', trait:'total'},
+    {text:'Я выделяю время на хобби и занятия, которые приносят мне удовольствие.', trait:'total'},
+    {text:'Я обращаюсь за помощью, когда она мне действительно нужна.', trait:'total'},
+    {text:'Я не игнорирую свои потребности ради удобства или желаний других людей.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Забота о себе', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Хорошая — вы внимательны к своим потребностям, восстанавливаете ресурсы. Это защищает от выгорания.':total>=18?'Умеренная — есть зоны, где вы себя запускаете, стоит обратить на них внимание.':'Недостаточная — вы игнорируете свои потребности. Это прямой путь к выгоранию и болезням.'}];
+  }
+},
+{
+  id:'screen_time', cat:'Поведение', emoji:'📱',
+  name:'Шкала зависимости от гаджетов',
+  freqDays:30,
+  desc:'Влияние экранов на вашу жизнь',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я провожу в телефоне больше 4 часов в день, не считая работы или учёбы.', trait:'total'},
+    {text:'Соцсети — это первое, что я проверяю утром, сразу после пробуждения.', trait:'total'},
+    {text:'Мне трудно отложить телефон, даже когда я занят важным делом.', trait:'total'},
+    {text:'Без телефона я чувствую тревогу или дискомфорт, как будто что-то не так.', trait:'total'},
+    {text:'Экранное время мешает мне спать — я засыпаю со смартфоном в руках.', trait:'total'},
+    {text:'Я отвлекаюсь на уведомления во время работы или учёбы, теряю концентрацию.', trait:'total'},
+    {text:'Я листаю ленту, даже когда мне это неинтересно — просто по привычке.', trait:'total'},
+    {text:'Из-за телефона я часто откладываю важные дела на потом.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Зависимость от гаджетов', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Высокая — экраны забирают много времени и энергии. Рекомендуется цифровая детоксикация и контроль экранного времени.':total>=18?'Умеренная — вы контролируете использование, но есть зоны роста.':'Низкая — вы контролируете экранное время и не зависите от гаджетов.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'ecr', cat:'Отношения', emoji:'🔗',
+  name:'Опыт близких отношений (ECR-R)',
+  freqDays:180,
+  desc:'Тревожность и избегание в привязанности',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто боюсь, что партнёр на самом деле меня не любит и может уйти.', trait:'ANX'},
+    {text:'Мне некомфортно открываться, когда отношения становятся слишком близкими и глубокими.', trait:'AVD'},
+    {text:'Я постоянно переживаю, что партнёр может меня оставить или найти кого-то лучше.', trait:'ANX'},
+    {text:'Я предпочитаю не зависеть от других и не полагаться на них в важных вещах.', trait:'AVD'},
+    {text:'Мне нужно часто слышать подтверждения любви от партнёра, чтобы чувствовать себя в безопасности.', trait:'ANX'},
+    {text:'Я стараюсь избегать эмоциональной близости с другими, чтобы не быть уязвимым.', trait:'AVD'},
+    {text:'Я волнуюсь, что могу оказаться не так важен партнёру, как он мне.', trait:'ANX'},
+    {text:'Мне трудно полностью довериться даже самому близкому человеку.', trait:'AVD'}
+  ],
+  interpret:(s)=>{
+    const anx=s.ANX||0, avd=s.AVD||0;
+    const style=anx>=20&&avd>=20?'Тревожно-избегающий':anx>=20?'Тревожный':avd>=20?'Избегающий':'Надёжный';
+    const color=style==='Надёжный'?'green':style==='Тревожно-избегающий'?'red':'yellow';
+    const d={
+      'Надёжный':'Вы комфортно чувствуете себя в близких отношениях, доверяете партнёру и не боитесь близости.',
+      'Тревожный':'Вы часто беспокоитесь о любви партнёра, нуждаетесь в подтверждениях и боитесь быть брошенным.',
+      'Избегающий':'Вы держите дистанцию, стараетесь не зависеть от других и избегаете глубокой близости.',
+      'Тревожно-избегающий':'Сочетание тревоги и избегания — вам сложно даётся близость, вы хотите её и одновременно боитесь.'
+    };
+    return [
+      {name:'Тревожность привязанности', value:anx, max:32, color: anx>=20?'red':anx>=12?'yellow':'green',
+       desc: anx>=20?'Высокая — сильный страх быть отвергнутым и брошенным. Это создаёт напряжение в отношениях.':anx>=12?'Умеренная — иногда вы тревожитесь о чувствах партнёра.':'Низкая — вы чувствуете себя уверенно в близких отношениях.'},
+      {name:'Избегание близости', value:avd, max:32, color: avd>=20?'red':avd>=12?'yellow':'green',
+       desc: avd>=20?'Высокое — сильный дискомфорт от близости, вы стараетесь держать дистанцию.':avd>=12?'Умеренное — иногда вам сложно открываться.':'Низкое — вы комфортно чувствуете себя в близких отношениях.'},
+      {name:'Стиль привязанности', value:0, max:0, color, desc:`Ваш преобладающий стиль: ${style}. ${d[style]}`}
+    ];
+  }
+},
+{
+  id:'social_anxiety', cat:'Отношения', emoji:'😳',
+  name:'Социальная тревожность (SPIN)',
+  freqDays:30,
+  desc:'Страх социальных ситуаций и оценки',
+  type:'likert',
+  scale:['Совсем не беспокоит','Слегка беспокоит','Умеренно беспокоит','Сильно беспокоит','Очень сильно беспокоит'],
+  questions:[
+    {text:'Я боюсь выступать перед большой аудиторией, даже если хорошо знаю материал.', trait:'total'},
+    {text:'Я сильно беспокоюсь о том, что обо мне подумают другие люди.', trait:'total'},
+    {text:'Я избегаю вечеринок и мероприятий, где много незнакомых людей.', trait:'total'},
+    {text:'Я краснею, потею или дрожу, когда на меня обращают внимание.', trait:'total'},
+    {text:'Я боюсь сказать что-то глупое в компании и выглядеть нелепо.', trait:'total'},
+    {text:'Мне кажется, что все смотрят и оценивают меня, когда я в обществе.', trait:'total'},
+    {text:'Я избегаю разговоров с авторитетными людьми или начальством.', trait:'total'},
+    {text:'Я отказываюсь от встреч, чтобы избежать дискомфорта в общении.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Социальная тревожность', value:total, max:40, color: total>=24?'red':total>=14?'yellow':'green',
+      desc: total>=24?'Высокая — социальная тревога серьёзно мешает общению и жизни. Рекомендуется работа с психологом (КПТ).':total>=14?'Умеренная — вы иногда чувствуете дискомфорт в общении, но справляетесь.':'Низкая — вы комфортно себя чувствуете среди людей.'}];
+  }
+},
+{
+  id:'trust', cat:'Отношения', emoji:'🤝',
+  name:'Шкала доверия к людям',
+  freqDays:90,
+  desc:'Базовое доверие к миру и людям',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я считаю, что большинству людей можно доверять, пока они не докажут обратное.', trait:'total'},
+    {text:'Люди в основном думают только о своей выгоде и готовы использовать других.', trait:'total', reverse:true},
+    {text:'Я легко открываюсь другим, делюсь личным и не боюсь быть уязвимым.', trait:'total'},
+    {text:'Меня часто обманывали, поэтому я всегда настороже с новыми людьми.', trait:'total', reverse:true},
+    {text:'Я верю, что в людях больше хорошего, чем плохого.', trait:'total'},
+    {text:'Даже с близкими я постоянно ожидаю подвоха или предательства.', trait:'total', reverse:true},
+    {text:'Я готов доверить важное дело другому человеку, не проверяя каждый шаг.', trait:'total'},
+    {text:'Я предпочитаю никому не доверять до конца, чтобы не разочароваться.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Доверие к людям', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы открыты и доверяете людям. Это помогает строить глубокие отношения.':total>=18?'Умеренное — вы осторожны, но не закрыты. Иногда сомневаетесь.':'Низкое — вы подозрительны к людям. Возможно, из-за негативного опыта. Стоит проработать с психологом.'}];
+  }
+},
+{
+  id:'jealousy', cat:'Отношения', emoji:'👀',
+  name:'Шкала ревнивости',
+  freqDays:90,
+  desc:'Склонность к ревности в отношениях',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто ревную партнёра без серьёзного повода или реальной причины.', trait:'total'},
+    {text:'Мне хочется проверять телефон, соцсети или переписки партнёра.', trait:'total'},
+    {text:'Мысли о возможной неверности не дают мне покоя и портят настроение.', trait:'total'},
+    {text:'Я чувствую угрозу, когда партнёр общается с привлекательными людьми.', trait:'total'},
+    {text:'Мне нужны постоянные подтверждения, что меня любят и я важен.', trait:'total'},
+    {text:'Я часто сравниваю себя с другими и проигрываю в своих глазах.', trait:'total'},
+    {text:'Я расстраиваюсь, если партнёр не отвечает сразу на сообщение или звонок.', trait:'total'},
+    {text:'Мне трудно доверять партнёру полностью, даже если он не давал повода.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Ревнивость', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Высокая — ревность может разрушать отношения. Рекомендуется работа с психологом.':total>=18?'Умеренная — бывают моменты ревности, но вы можете с ними справляться.':'Низкая — вы уверены в себе и партнёре, доверяете отношениям.'}];
+  }
+},
+{
+  id:'assertiveness', cat:'Отношения', emoji:'🗣️',
+  name:'Шкала ассертивности',
+  freqDays:90,
+  desc:'Умение отстаивать свои границы без агрессии',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу спокойно сказать «нет», если не хочу что-то делать, без чувства вины.', trait:'total'},
+    {text:'Я открыто выражаю своё мнение, даже если оно отличается от мнения других.', trait:'total'},
+    {text:'Я не позволяю другим нарушать мои личные границы и пространство.', trait:'total'},
+    {text:'Мне трудно отказывать людям, даже когда это идёт в ущерб мне.', trait:'total', reverse:true},
+    {text:'Я спокойно принимаю критику, не воспринимая её как личное оскорбление.', trait:'total'},
+    {text:'Я умею просить о том, что мне нужно, не испытывая неловкости.', trait:'total'},
+    {text:'В конфликте я защищаю свои интересы, не переходя на агрессию или обвинения.', trait:'total'},
+    {text:'Я часто уступаю другим, чтобы избежать конфликта или недовольства.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Ассертивность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы умеете отстаивать свои права уважительно и без агрессии. Это помогает в отношениях.':total>=18?'Средняя — иногда вам трудно постоять за себя, но в целом справляетесь.':'Низкая — вам сложно отказывать и защищать границы. Рекомендуется тренинг ассертивности.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'resilience', cat:'Личность', emoji:'🌳',
+  name:'Шкала жизнестойкости (CD-RISC)',
+  freqDays:90,
+  desc:'Способность восстанавливаться после стресса',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я легко адаптируюсь к изменениям, даже если они происходят неожиданно.', trait:'total'},
+    {text:'Я справляюсь с трудностями, не теряя себя и свою идентичность.', trait:'total'},
+    {text:'Я могу найти юмор даже в сложной и стрессовой ситуации.', trait:'total'},
+    {text:'Стресс делает меня сильнее, а не ломает.', trait:'total'},
+    {text:'После неудачи или потрясения я быстро восстанавливаюсь.', trait:'total'},
+    {text:'Я сохраняю способность думать ясно под давлением и в кризисе.', trait:'total'},
+    {text:'Я верю, что справлюсь с любыми трудностями, которые встретятся на пути.', trait:'total'},
+    {text:'Я не сдаюсь, даже если что-то идёт не так и результаты не сразу видны.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Жизнестойкость', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы хорошо справляетесь со стрессом и восстанавливаетесь после неудач. Это ценный ресурс.':total>=18?'Средняя — вы справляетесь, но в кризисных ситуациях можете теряться.':'Низкая — вам трудно переносить стресс. Рекомендуется работа с психологом и развитие навыков совладания.'}];
+  }
+},
+{
+  id:'optimism', cat:'Эмоции', emoji:'🌈',
+  name:'Тест на оптимизм (LOT-R)',
+  freqDays:60,
+  desc:'Позитивный взгляд на будущее',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'В неопределённых ситуациях я обычно ожидаю хорошего исхода.', trait:'total'},
+    {text:'Если что-то может пойти не так, скорее всего так и произойдёт.', trait:'total', reverse:true},
+    {text:'Я всегда с оптимизмом смотрю в будущее и верю в лучшее.', trait:'total'},
+    {text:'Я редко рассчитываю на то, что дела пойдут хорошо.', trait:'total', reverse:true},
+    {text:'Я верю, что в жизни больше хорошего, чем плохого.', trait:'total'},
+    {text:'Я редко ожидаю от будущего чего-то позитивного.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Оптимизм', value:total, max:30, color: total>=22?'green':total>=14?'yellow':'red',
+      desc: total>=22?'Вы оптимист — позитивный взгляд помогает справляться с трудностями и укрепляет здоровье.':total>=14?'Реалистичный взгляд — вы видите и хорошее, и плохое, трезво оцениваете ситуацию.':'Пессимистичный настрой — вы склонны ожидать худшего. Стоит поработать с психологом.'}];
+  }
+},
+{
+  id:'gratitude', cat:'Эмоции', emoji:'🙏',
+  name:'Шкала благодарности (GQ-6)',
+  freqDays:60,
+  desc:'Склонность испытывать признательность',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'В моей жизни много вещей, за которые я искренне благодарен.', trait:'total'},
+    {text:'Если бы мне нужно было составить список всего, за что я благодарен, он был бы очень длинным.', trait:'total'},
+    {text:'Я редко задумываюсь о том, за что можно быть благодарным в жизни.', trait:'total', reverse:true},
+    {text:'Я благодарен разным людям за то, что они делают для меня.', trait:'total'},
+    {text:'С возрастом я всё больше ценю людей и события в своей жизни.', trait:'total'},
+    {text:'Я могу долго не испытывать благодарности ни к кому и ни к чему.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Благодарность', value:total, max:30, color: total>=24?'green':total>=14?'yellow':'red',
+      desc: total>=24?'Высокая — вы умеете замечать хорошее. Благодарность связана с благополучием и снижением стресса.':total>=14?'Средняя — иногда вы забываете ценить то, что имеете.':'Низкая — стоит развивать практику благодарности: ежедневно записывать 3 хорошие вещи.'}];
+  }
+},
+{
+  id:'life_purpose', cat:'Настроение', emoji:'🧭',
+  name:'Шкала смысла жизни',
+  freqDays:90,
+  desc:'Ощущение осмысленности и цели',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'У меня есть ясные цели в жизни, к которым я стремлюсь.', trait:'total'},
+    {text:'Я понимаю, ради чего живу и что для меня по-настоящему важно.', trait:'total'},
+    {text:'Моя жизнь имеет смысл и значение, даже в трудные моменты.', trait:'total'},
+    {text:'Я делаю что-то важное для себя и для других людей.', trait:'total'},
+    {text:'Даже в трудностях я вижу смысл и возможность для роста.', trait:'total'},
+    {text:'Я доволен направлением, в котором движется моя жизнь.', trait:'total'},
+    {text:'Я часто чувствую, что моя жизнь бесцельна и пуста.', trait:'total', reverse:true},
+    {text:'Я знаю, к чему стремлюсь в ближайшие годы, у меня есть план.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Смысл жизни', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокий — вы ощущаете осмысленность жизни и имеете ясные цели. Это мощный ресурс.':total>=18?'Средний — иногда вы теряете ориентиры, но в целом видите смысл.':'Низкий — стоит обратиться к психологу для работы над поиском смысла и ценностей.'}];
+  }
+},
+{
+  id:'happiness', cat:'Эмоции', emoji:'😄',
+  name:'Шкала субъективного счастья (SHS)',
+  freqDays:30,
+  desc:'Насколько вы ощущаете себя счастливым',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я считаю себя счастливым человеком.', trait:'total'},
+    {text:'По сравнению с большинством людей я счастливее.', trait:'total'},
+    {text:'Некоторые люди в целом очень счастливы, я отношусь к ним.', trait:'total'},
+    {text:'Я часто испытываю радость и удовольствие от жизни.', trait:'total'},
+    {text:'Я наслаждаюсь моментом, а не думаю только о будущем или прошлом.', trait:'total'},
+    {text:'Я редко чувствую себя несчастным без серьёзной причины.', trait:'total'},
+    {text:'Я доволен тем, как складывается моя жизнь.', trait:'total'},
+    {text:'Я чувствую, что живу полной жизнью.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Субъективное счастье', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы чувствуете себя счастливым, наслаждаетесь жизнью и умеете радоваться.':total>=18?'Среднее — вы счастливы не всегда, но есть много хорошего.':'Низкое — возможно, стоит поработать над качеством жизни с психологом.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'emotional_stability', cat:'Личность', emoji:'⚖️',
+  name:'Шкала эмоциональной стабильности',
+  freqDays:30,
+  desc:'Уравновешенность и устойчивость эмоций',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Моё настроение обычно стабильно и не меняется резко без причины.', trait:'total'},
+    {text:'Я редко испытываю резкие перепады эмоций в течение дня.', trait:'total'},
+    {text:'Я быстро возвращаюсь в норму после стресса или неприятностей.', trait:'total'},
+    {text:'Эмоции не мешают мне принимать важные решения.', trait:'total'},
+    {text:'Я спокойно реагирую на критику, не принимая её близко к сердцу.', trait:'total'},
+    {text:'В кризисных ситуациях я сохраняю хладнокровие и ясность мысли.', trait:'total'},
+    {text:'Моё настроение легко испортить надолго, даже мелочью.', trait:'total', reverse:true},
+    {text:'Я редко выхожу из себя и почти никогда не срываюсь на других.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Эмоциональная стабильность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы эмоционально устойчивы, спокойны и уравновешенны. Это помогает в отношениях и работе.':total>=18?'Средняя — иногда вас выбивают из равновесия, но вы справляетесь.':'Низкая — вы склонны к перепадам настроения. Стоит развивать навыки регуляции эмоций с психологом.'}];
+  }
+},
+{
+  id:'cognitive_flexibility', cat:'Мышление', emoji:'🧠',
+  name:'Шкала когнитивной гибкости',
+  freqDays:90,
+  desc:'Способность адаптировать мышление',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я легко адаптируюсь, когда планы резко меняются или что-то идёт не по сценарию.', trait:'total'},
+    {text:'Я могу рассматривать ситуацию с разных сторон, а не только с одной.', trait:'total'},
+    {text:'Я готов менять своё мнение при появлении новых фактов или аргументов.', trait:'total'},
+    {text:'Мне трудно переключиться с одного способа мышления на другой.', trait:'total', reverse:true},
+    {text:'Я спокойно принимаю неопределённость и не теряюсь в ней.', trait:'total'},
+    {text:'Я пробую новые подходы к решению старых задач, а не действую по шаблону.', trait:'total'},
+    {text:'Я застреваю на одном решении, даже если оно не работает.', trait:'total', reverse:true},
+    {text:'Мне интересно смотреть на вещи по-новому и учиться чему-то новому.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Когнитивная гибкость', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы легко перестраиваете мышление под новые условия. Это помогает в меняющемся мире.':total>=18?'Средняя — иногда вам трудно отойти от привычного взгляда.':'Низкая — вам сложно менять точку зрения и адаптироваться. Рекомендуется развитие гибкости мышления.'}];
+  }
+},
+{
+  id:'stress_tolerance', cat:'Личность', emoji:'🛡️',
+  name:'Шкала стрессоустойчивости',
+  freqDays:90,
+  desc:'Способность сохранять спокойствие под давлением',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я сохраняю спокойствие в стрессовых ситуациях, не теряя головы.', trait:'total'},
+    {text:'Даже под давлением я могу ясно мыслить и принимать решения.', trait:'total'},
+    {text:'Я быстро восстанавливаюсь после потрясений и неудач.', trait:'total'},
+    {text:'Стресс не выбивает меня из равновесия надолго.', trait:'total'},
+    {text:'Я умею снимать напряжение конструктивными способами (спорт, дыхание, отдых).', trait:'total'},
+    {text:'В кризисных ситуациях я действую уверенно, а не паникую.', trait:'total'},
+    {text:'Мне сложно справляться даже с мелкими неурядицами — они выбивают меня надолго.', trait:'total', reverse:true},
+    {text:'Я способен сохранять продуктивность под давлением, а не сдаваться.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Стрессоустойчивость', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы отлично справляетесь со стрессом. Это ценно в современном мире.':total>=18?'Средняя — вы справляетесь, но в сильном стрессе можете теряться.':'Низкая — стресс сильно влияет на вас. Рекомендуются техники релаксации и работа с психологом.'}];
+  }
+},
+{
+  id:'proactivity', cat:'Личность', emoji:'🚀',
+  name:'Шкала проактивности',
+  freqDays:90,
+  desc:'Инициативность и ответственность за жизнь',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я постоянно ищу способы улучшить свою жизнь, а не жду, что всё изменится само.', trait:'total'},
+    {text:'Я беру инициативу, когда нужно что-то изменить в своей жизни.', trait:'total'},
+    {text:'Я не жду, пока обстоятельства изменятся — я сам их меняю.', trait:'total'},
+    {text:'Я предвижу проблемы и готовлюсь к ним заранее.', trait:'total'},
+    {text:'Я создаю возможности, а не жду, когда они появятся.', trait:'total'},
+    {text:'Я беру ответственность за свою жизнь на себя, а не перекладываю на других.', trait:'total'},
+    {text:'Я предпочитаю действовать, а не плыть по течению.', trait:'total'},
+    {text:'Я часто жду, что кто-то другой решит мои проблемы.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Проактивность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы автор своей жизни, инициативны и ответственны. Это основа успеха.':total>=18?'Средняя — иногда вы проявляете инициативу, но не всегда.':'Реактивная позиция — вы склонны плыть по течению и ждать, что кто-то решит за вас.'}];
+  }
+},
+{
+  id:'self_efficacy', cat:'Личность', emoji:'💪',
+  name:'Шкала самоэффективности (Шварцер)',
+  freqDays:90,
+  desc:'Вера в свои силы справиться с трудностями',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Если я приложу достаточно усилий, я смогу решить большинство проблем.', trait:'total'},
+    {text:'Даже если мне мешают, я нахожу способ достичь поставленной цели.', trait:'total'},
+    {text:'Мне легко даётся воплощать идеи в жизнь.', trait:'total'},
+    {text:'Я уверен, что справлюсь с неожиданными трудностями.', trait:'total'},
+    {text:'Я сохраняю спокойствие перед лицом сложностей, потому что верю в себя.', trait:'total'},
+    {text:'Когда я сталкиваюсь с проблемой, я обычно нахожу несколько решений.', trait:'total'},
+    {text:'Даже если что-то не получается, я пробую снова, не опуская руки.', trait:'total'},
+    {text:'Я верю, что могу справиться с любыми задачами, которые передо мной стоят.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самоэффективность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы уверены в своих силах, это помогает достигать целей и справляться с трудностями.':total>=18?'Средняя — вы верите в себя, но иногда сомневаетесь.':'Низкая — вы сомневаетесь в своих способностях. Работа над самооценкой поможет.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'self_acceptance', cat:'Личность', emoji:'🌷',
+  name:'Шкала самопринятия',
+  freqDays:60,
+  desc:'Способность принимать себя без осуждения',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я принимаю себя таким, какой я есть, со всеми достоинствами и недостатками.', trait:'total'},
+    {text:'Я не считаю нужным меняться только для того, чтобы понравиться другим.', trait:'total'},
+    {text:'Мне комфортно быть собой рядом с другими людьми.', trait:'total'},
+    {text:'Я часто критикую себя за недостатки и не могу принять их.', trait:'total', reverse:true},
+    {text:'Я понимаю, что идеальных людей не бывает, и это нормально.', trait:'total'},
+    {text:'Я уважаю свои чувства и потребности, не игнорирую их.', trait:'total'},
+    {text:'Мне сложно принять свои слабости и ошибки без самобичевания.', trait:'total', reverse:true},
+    {text:'Я не сравниваю себя с другими постоянно и не проигрываю в своих глазах.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самопринятие', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы принимаете себя, это основа психологического здоровья и устойчивости.':total>=18?'Среднее — в целом вы себя принимаете, но есть зоны сомнений.':'Низкое — самокритика мешает жить и снижает самооценку. Рекомендуется работа с психологом.'}];
+  }
+},
+{
+  id:'inner_critic', cat:'Мышление', emoji:'💬',
+  name:'Шкала внутреннего критика',
+  freqDays:30,
+  desc:'Насколько силён ваш внутренний голос самокритики',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Внутренний голос часто говорит мне, что я недостаточно хорош.', trait:'total'},
+    {text:'Я ругаю себя за мелкие ошибки, которые другие бы даже не заметили.', trait:'total'},
+    {text:'Мне сложно принимать похвалу — кажется, что я её не заслуживаю.', trait:'total'},
+    {text:'Я часто сравниваю себя с другими не в свою пользу.', trait:'total'},
+    {text:'Внутренний критик мешает мне пробовать новое из-за страха неудачи.', trait:'total'},
+    {text:'Я чувствую, что заслуживаю критики больше, чем другие люди.', trait:'total'},
+    {text:'Даже при успехе я думаю, что мне просто повезло.', trait:'total'},
+    {text:'Я часто прокручиваю прошлые ошибки и стыжусь их.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Внутренний критик', value:total, max:40, color: total>=28?'red':total>=18?'yellow':'green',
+      desc: total>=28?'Очень сильный критик — он мешает жить, снижает самооценку. Рекомендуется психотерапия.':total>=18?'Умеренный — иногда критик берёт верх, но вы справляетесь.':'Здоровый самоконтроль без самобичевания.'}];
+  }
+},
+{
+  id:'vulnerability', cat:'Эмоции', emoji:'💗',
+  name:'Шкала уязвимости в отношениях',
+  freqDays:90,
+  desc:'Способность открываться близким',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу открыто говорить о своих страхах и переживаниях с близкими.', trait:'total'},
+    {text:'Я позволяю другим видеть меня настоящим, а не только сильным.', trait:'total'},
+    {text:'Мне комфортно признаваться в слабостях и просить поддержки.', trait:'total'},
+    {text:'Я боюсь, что если покажу себя настоящим, меня отвергнут.', trait:'total', reverse:true},
+    {text:'Я делюсь своими переживаниями с близкими, не боясь осуждения.', trait:'total'},
+    {text:'Я могу попросить поддержку, когда мне плохо, не стесняясь.', trait:'total'},
+    {text:'Я стараюсь не показывать, что мне больно, чтобы не выглядеть слабым.', trait:'total', reverse:true},
+    {text:'Мне важно быть честным с близкими о своих чувствах, даже если это неудобно.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Уязвимость', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы умеете открываться, это создаёт настоящую близость и глубину в отношениях.':total>=18?'Средняя — иногда вы открываетесь, но в сложных ситуациях закрываетесь.':'Низкая — вы защищаетесь от близости, что мешает глубоким отношениям. Рекомендуется работа с психологом.'}];
+  }
+},
+{
+  id:'boundaries', cat:'Отношения', emoji:'🧱',
+  name:'Шкала психологических границ',
+  freqDays:90,
+  desc:'Насколько вы умеете защищать своё пространство',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо понимаю, где заканчиваюсь я и начинаются другие люди.', trait:'total'},
+    {text:'Я могу спокойно отказать, если что-то для меня не подходит.', trait:'total'},
+    {text:'Я не позволяю другим нарушать моё личное пространство и время.', trait:'total'},
+    {text:'Мне сложно понять, где мои чувства, а где чужие.', trait:'total', reverse:true},
+    {text:'Я уважаю свои желания и не позволяю их игнорировать.', trait:'total'},
+    {text:'Я могу сказать «мне это не подходит» без чувства вины.', trait:'total'},
+    {text:'Я часто соглашаюсь на то, что мне не нравится, чтобы не обидеть других.', trait:'total', reverse:true},
+    {text:'Я сохраняю спокойствие, когда кто-то пытается навязать мне своё мнение.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Психологические границы', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Здоровые — вы умеете защищать своё пространство и уважаете границы других. Это основа здоровых отношений.':total>=18?'Средние — иногда границы нарушаются, стоит поработать над этим.':'Слабые — вы часто позволяете нарушать свои границы, что ведёт к выгоранию и обидам.'}];
+  }
+},
+{
+  id:'meaningful_connections', cat:'Отношения', emoji:'💕',
+  name:'Шкала глубины связей',
+  freqDays:60,
+  desc:'Качество близких отношений',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'У меня есть люди, с которыми я могу быть полностью собой.', trait:'total'},
+    {text:'Мои близкие понимают меня по-настоящему, а не только поверхностно.', trait:'total'},
+    {text:'Я чувствую глубокую связь с важными для меня людьми.', trait:'total'},
+    {text:'Мне сложно найти людей, с которыми можно быть настоящим.', trait:'total', reverse:true},
+    {text:'Я вкладываюсь в поддержание глубоких отношений, а не только в поверхностное общение.', trait:'total'},
+    {text:'Для меня важно качество общения, а не количество.', trait:'total'},
+    {text:'Мои отношения дают мне энергию и поддержку.', trait:'total'},
+    {text:'Я чувствую себя одиноким, даже когда рядом люди.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Глубина связей', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — у вас есть глубокие отношения, это важнейший ресурс для психики.':total>=18?'Средняя — есть близкие люди, но не всегда хватает глубины.':'Низкая — вам не хватает настоящих связей. Стоит развивать способность к близости.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'flow', cat:'Эмоции', emoji:'🌊',
+  name:'Шкала потока (Flow)',
+  freqDays:60,
+  desc:'Способность погружаться в деятельность',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто полностью погружаюсь в то, что делаю, забывая обо всём вокруг.', trait:'total'},
+    {text:'Время летит незаметно, когда я занят любимым делом.', trait:'total'},
+    {text:'Я забываю об усталости, когда увлечён процессом.', trait:'total'},
+    {text:'Я испытываю глубокое удовлетворение от самого процесса работы, а не только от результата.', trait:'total'},
+    {text:'Мне легко достичь состояния полной концентрации на задаче.', trait:'total'},
+    {text:'Я чувствую себя в потоке, когда занимаюсь тем, что люблю.', trait:'total'},
+    {text:'Мне сложно увлечься надолго каким-либо делом.', trait:'total', reverse:true},
+    {text:'Я стремлюсь к занятиям, где могу полностью раскрыться и проявить себя.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Поток', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокий — вы умеете испытывать состояние потока. Это связано с высоким благополучием и удовлетворённостью жизнью.':total>=18?'Средний — иногда вы погружаетесь в деятельность, но не всегда.':'Низкий — вам трудно погружаться в деятельность. Стоит найти более увлекательные занятия.'}];
+  }
+},
+{
+  id:'meaning_work', cat:'Настроение', emoji:'💼',
+  name:'Шкала осмысленности работы/учёбы',
+  freqDays:90,
+  desc:'Насколько вы видите смысл в своей деятельности',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я вижу смысл в том, чем занимаюсь большую часть дня.', trait:'total'},
+    {text:'Моя работа или учёба соответствует моим ценностям и убеждениям.', trait:'total'},
+    {text:'Я чувствую, что приношу пользу людям через свою деятельность.', trait:'total'},
+    {text:'Я получаю удовольствие от процесса работы, а не только от результата.', trait:'total'},
+    {text:'Мне важно то, что я делаю, это имеет значение для меня.', trait:'total'},
+    {text:'Я чувствую, что моя деятельность развивает меня как личность.', trait:'total'},
+    {text:'Я часто думаю, что занимаюсь бессмысленным делом.', trait:'total', reverse:true},
+    {text:'Я хотел бы, чтобы моя работа больше соответствовала моим интересам.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Осмысленность деятельности', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы видите смысл в своём деле. Это мощный источник мотивации и удовлетворённости.':total>=18?'Средняя — есть моменты смысла, но и сомнения.':'Низкая — возможно, стоит задуматься о смене сферы или роли, чтобы найти больше смысла.'}];
+  }
+},
+{
+  id:'social_support', cat:'Отношения', emoji:'🤝',
+  name:'Шкала воспринимаемой социальной поддержки',
+  freqDays:60,
+  desc:'Ощущаете ли вы поддержку от окружающих',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'У меня есть люди, на которых я могу положиться в трудной ситуации.', trait:'total'},
+    {text:'Я чувствую, что меня поддерживают и понимают близкие.', trait:'total'},
+    {text:'Мне есть с кем поделиться переживаниями и важными мыслями.', trait:'total'},
+    {text:'Я чувствую себя одиноким, даже когда рядом люди.', trait:'total', reverse:true},
+    {text:'Мне есть к кому обратиться за советом или помощью.', trait:'total'},
+    {text:'Я ощущаю заботу со стороны близких людей.', trait:'total'},
+    {text:'Мне кажется, что я никому не нужен и мои проблемы никого не волнуют.', trait:'total', reverse:true},
+    {text:'Я чувствую, что меня ценят и принимают таким, какой я есть.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Социальная поддержка', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы ощущаете поддержку. Это важнейший ресурс для психического здоровья.':total>=18?'Средняя — поддержка есть, но не всегда достаточная.':'Низкая — вам не хватает поддержки. Стоит укрепить связи или обратиться к психологу.'}];
+  }
+},
+{
+  id:'life_balance', cat:'Настроение', emoji:'⚖️',
+  name:'Шкала жизненного баланса',
+  freqDays:60,
+  desc:'Баланс между сферами жизни',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'У меня есть баланс между работой и личной жизнью.', trait:'total'},
+    {text:'Я уделяю достаточно времени семье, друзьям, хобби.', trait:'total'},
+    {text:'Я не чувствую, что какая-то сфера «съедает» всю мою жизнь.', trait:'total'},
+    {text:'Я могу переключаться между разными сферами жизни без потерь.', trait:'total'},
+    {text:'Я редко жертвую отдыхом ради работы или наоборот.', trait:'total'},
+    {text:'У меня есть время для себя, для восстановления.', trait:'total'},
+    {text:'Мне сложно найти время на важное для меня.', trait:'total', reverse:true},
+    {text:'Я чувствую, что живу в согласии с собой и своими приоритетами.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Жизненный баланс', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Хороший — вы поддерживаете баланс между сферами жизни. Это помогает сохранять ресурсы.':total>=18?'Средний — баланс есть, но иногда нарушается.':'Нарушен — одна или несколько сфер доминируют в ущерб остальным. Стоит пересмотреть приоритеты.'}];
+  }
+},
+{
+  id:'self_reflection', cat:'Личность', emoji:'📖',
+  name:'Шкала рефлексии и самонаблюдения',
+  freqDays:60,
+  desc:'Способность анализировать свой внутренний опыт',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я регулярно размышляю о своих переживаниях и реакциях.', trait:'total'},
+    {text:'Я стараюсь понять причины своих эмоций и поступков.', trait:'total'},
+    {text:'Я веду дневник или практикую другие практики самопознания.', trait:'total'},
+    {text:'Я замечаю, как мои эмоции влияют на принимаемые решения.', trait:'total'},
+    {text:'Мне важно понимать себя глубже, а не жить на автопилоте.', trait:'total'},
+    {text:'Я редко задумываюсь о том, что происходит у меня внутри.', trait:'total', reverse:true},
+    {text:'После сложных ситуаций я анализирую свой опыт, чтобы сделать выводы.', trait:'total'},
+    {text:'Я стараюсь учиться на своих эмоциях и реакциях.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Рефлексия', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы хорошо умеете анализировать свой опыт. Это способствует личностному росту.':total>=18?'Средняя — иногда вы анализируете себя, но не регулярно.':'Низкая — вы редко задумываетесь о внутренних процессах. Стоит развивать практику самонаблюдения.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'self_worth', cat:'Личность', emoji:'💎',
+  name:'Шкала самоценности',
+  freqDays:60,
+  desc:'Ощущение собственной ценности независимо от достижений',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую свою ценность независимо от достижений и успехов.', trait:'total'},
+    {text:'Я достоин любви и уважения просто потому, что я есть.', trait:'total'},
+    {text:'Моя самооценка не зависит от мнения окружающих.', trait:'total'},
+    {text:'Когда у меня что-то не получается, я не перестаю себя уважать.', trait:'total'},
+    {text:'Я не сравниваю свою ценность с ценностью других людей.', trait:'total'},
+    {text:'Я могу быть добрым к себе, даже когда совершаю ошибки.', trait:'total'},
+    {text:'Мне сложно чувствовать себя ценным, если я не достигаю успехов.', trait:'total', reverse:true},
+    {text:'Я верю, что заслуживаю хорошего отношения к себе.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самоценность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы ощущаете свою ценность независимо от внешних достижений. Это устойчивая основа личности.':total>=18?'Средняя — ваша самоценность иногда зависит от успехов и одобрения.':'Низкая — ваша ценность сильно привязана к достижениям и оценкам других. Стоит поработать с психологом.'}];
+  }
+},
+{
+  id:'emotional_maturity', cat:'Личность', emoji:'🧘‍♂️',
+  name:'Шкала эмоциональной зрелости',
+  freqDays:90,
+  desc:'Способность управлять эмоциями и реагировать зрело',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я умею выражать эмоции уместно, не подавляя их и не выплёскивая на других.', trait:'total'},
+    {text:'Я понимаю свои чувства и могу назвать их словами.', trait:'total'},
+    {text:'Я справляюсь с фрустрацией и разочарованием без разрушительных реакций.', trait:'total'},
+    {text:'Я могу отложить удовольствие ради долгосрочных целей.', trait:'total'},
+    {text:'Я принимаю ответственность за свои эмоции и реакции.', trait:'total'},
+    {text:'Я способен на эмпатию и учитываю чувства других.', trait:'total'},
+    {text:'Я часто реагирую импульсивно и потом жалею об этом.', trait:'total', reverse:true},
+    {text:'Я умею сохранять спокойствие в конфликтных ситуациях.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Эмоциональная зрелость', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы эмоционально зрелый человек, умеете управлять чувствами и строить здоровые отношения.':total>=18?'Средняя — в целом справляетесь, но в стрессовых ситуациях можете реагировать импульсивно.':'Низкая — эмоции часто управляют вами. Стоит развивать эмоциональный интеллект с психологом.'}];
+  }
+},
+{
+  id:'locus_control', cat:'Личность', emoji:'🎲',
+  name:'Шкала локуса контроля',
+  freqDays:90,
+  desc:'Внутренний или внешний контроль над жизнью',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Моя жизнь в основном зависит от моих действий и решений.', trait:'total'},
+    {text:'Успех — это в первую очередь результат усилий, а не удачи.', trait:'total'},
+    {text:'Я сам строю свою карьеру и жизнь.', trait:'total'},
+    {text:'Обстоятельства часто сильнее меня, я мало что могу изменить.', trait:'total', reverse:true},
+    {text:'Я могу изменить свою жизнь, если захочу.', trait:'total'},
+    {text:'Всё в жизни предопределено, от меня мало что зависит.', trait:'total', reverse:true},
+    {text:'Когда что-то идёт не так, я ищу, что я могу изменить в своих действиях.', trait:'total'},
+    {text:'Я часто чувствую себя игрушкой в руках судьбы.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>{
+    return [{name:'Локус контроля', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Внутренний — вы верите, что контролируете свою жизнь. Это связано с активной позицией и благополучием.':total>=18?'Смешанный — иногда вы чувствуете контроль, иногда считаете, что всё зависит от обстоятельств.':'Внешний — вы считаете, что жизнь определяется внешними силами. Это связано с пассивностью и сниженным настроением.'}];
+  }
+},
+{
+  id:'trust_self', cat:'Личность', emoji:'💗',
+  name:'Шкала доверия к себе',
+  freqDays:90,
+  desc:'Способность слышать свои желания и доверять себе',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я доверяю своим чувствам и интуиции при принятии решений.', trait:'total'},
+    {text:'Я знаю, чего хочу, и следую своим желаниям.', trait:'total'},
+    {text:'Мне легко принимать решения, доверяя себе.', trait:'total'},
+    {text:'Я часто сомневаюсь в своих решениях и ищу одобрения у других.', trait:'total', reverse:true},
+    {text:'Я уважаю свои потребности и не игнорирую их.', trait:'total'},
+    {text:'Я могу сказать «нет», если это противоречит моим желаниям.', trait:'total'},
+    {text:'Мне сложно понять, чего я хочу на самом деле.', trait:'total', reverse:true},
+    {text:'Я не нуждаюсь в постоянном одобрении других, чтобы действовать.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Доверие к себе', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы доверяете себе, это основа устойчивости и автономии.':total>=18?'Среднее — иногда вы слышите себя, иногда теряете контакт с желаниями.':'Низкое — вам сложно слышать себя. Рекомендуется работа с психологом.'}];
+  }
+},
+{
+  id:'attachment_parents', cat:'Отношения', emoji:'👨‍👩‍👧',
+  name:'Шкала сепарации от родителей',
+  freqDays:180,
+  desc:'Эмоциональная независимость от родителей',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую себя эмоционально независимым от родителей.', trait:'total'},
+    {text:'Мои решения не зависят от одобрения родителей.', trait:'total'},
+    {text:'Я могу жить своей жизнью, не испытывая вины перед родителями.', trait:'total'},
+    {text:'Я чувствую вину, когда поступаю не так, как хотят родители.', trait:'total', reverse:true},
+    {text:'Я принимаю свои решения самостоятельно, без оглядки на родителей.', trait:'total'},
+    {text:'Я могу говорить родителям «нет», не боясь их расстроить.', trait:'total'},
+    {text:'Мне сложно отделить свои желания от ожиданий родителей.', trait:'total', reverse:true},
+    {text:'Я чувствую себя взрослым человеком рядом с родителями.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Сепарация от родителей', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы эмоционально отделились от родителей, живёте своей жизнью. Это признак зрелости.':total>=18?'Средняя — сепарация частично завершена, но есть зоны зависимости.':'Низкая — вы сильно зависите от родителей. Рекомендуется работа с психологом для завершения сепарации.'}];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'shame_resilience', cat:'Эмоции', emoji:'🛡️',
+  name:'Шкала устойчивости к стыду',
+  freqDays:90,
+  desc:'Способность переживать стыд без разрушения',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу пережить стыд, не разрушаясь и не впадая в самоуничижение.', trait:'total'},
+    {text:'Я не позволяю стыду управлять моими решениями и жизнью.', trait:'total'},
+    {text:'Я могу признать ошибку и не чувствовать себя при этом никчёмным.', trait:'total'},
+    {text:'Я не прячусь от людей после неудачи или неловкой ситуации.', trait:'total'},
+    {text:'Мне легко говорить о своих ошибках, не боясь осуждения.', trait:'total'},
+    {text:'Стыд для меня — временное чувство, а не постоянное состояние.', trait:'total'},
+    {text:'Я могу посмеяться над своей ошибкой без самоуничижения.', trait:'total'},
+    {text:'Я остаюсь на связи с людьми, даже когда мне стыдно.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Устойчивость к стыду', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы умеете переживать стыд, это большой ресурс. Стыд не разрушает вашу самооценку.':total>=18?'Средняя — иногда стыд берёт верх, но вы справляетесь.':'Низкая — стыд может сильно вас разрушать и вести к изоляции. Рекомендуется психотерапия.'}];
+  }
+},
+{
+  id:'self_forgiveness', cat:'Эмоции', emoji:'🕊️',
+  name:'Шкала самопрощения',
+  freqDays:90,
+  desc:'Умение прощать себя за ошибки',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу простить себя за прошлые ошибки и двигаться дальше.', trait:'total'},
+    {text:'Я не возвращаюсь постоянно к своим промахам и не корю себя.', trait:'total'},
+    {text:'Я понимаю, что ошибки — это часть жизни и человеческого опыта.', trait:'total'},
+    {text:'Я долго корю себя за неудачи и не могу себя простить.', trait:'total', reverse:true},
+    {text:'Я могу отпустить чувство вины, когда понимаю, что сделал всё возможное.', trait:'total'},
+    {text:'Я отношусь к себе с пониманием, когда ошибаюсь.', trait:'total'},
+    {text:'Мне кажется, что я не заслуживаю прощения за прошлое.', trait:'total', reverse:true},
+    {text:'Я умею двигаться дальше, не застревая в прошлых ошибках.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самопрощение', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокое — вы умеете прощать себя. Это важно для психологического здоровья и движения вперёд.':total>=18?'Среднее — иногда вы застреваете в вине, но можете себя простить.':'Низкое — вы слишком строги к себе. Работа над самопрощением значительно улучшит качество жизни.'}];
+  }
+},
+{
+  id:'self_awareness', cat:'Личность', emoji:'🔍',
+  name:'Шкала самоосознанности',
+  freqDays:90,
+  desc:'Насколько вы понимаете себя',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо понимаю свои мысли, чувства и мотивы поведения.', trait:'total'},
+    {text:'Я знаю свои сильные и слабые стороны.', trait:'total'},
+    {text:'Я замечаю, когда моё поведение противоречит моим ценностям.', trait:'total'},
+    {text:'Я часто действую на автопилоте, не осознавая своих реакций.', trait:'total', reverse:true},
+    {text:'Я могу объяснить, почему чувствую то или иное в конкретной ситуации.', trait:'total'},
+    {text:'Я отслеживаю своё внутреннее состояние в течение дня.', trait:'total'},
+    {text:'Мне трудно понять мотивы своих поступков.', trait:'total', reverse:true},
+    {text:'Я понимаю, как мои эмоции влияют на мои решения.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Самоосознанность', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы хорошо понимаете себя, это основа личностного роста и осознанной жизни.':total>=18?'Средняя — в целом понимаете себя, но есть слепые зоны.':'Низкая — стоит развивать практики самонаблюдения и рефлексии, возможно, с психологом.'}];
+  }
+},
+{
+  id:'integration', cat:'Личность', emoji:'🌈',
+  name:'Шкала интеграции личности',
+  freqDays:180,
+  desc:'Насколько вы целостны и согласованы',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую себя целостным человеком, а не набором противоречивых частей.', trait:'total'},
+    {text:'Мои ценности, слова и поступки согласованы между собой.', trait:'total'},
+    {text:'Я понимаю, кто я и чего хочу от жизни.', trait:'total'},
+    {text:'Во мне много противоречий, с которыми сложно справиться.', trait:'total', reverse:true},
+    {text:'Я принимаю разные стороны своей личности без конфликта.', trait:'total'},
+    {text:'Я не пытаюсь быть кем-то другим, а живу в согласии с собой.', trait:'total'},
+    {text:'Мне сложно совместить разные части себя в единое целое.', trait:'total', reverse:true},
+    {text:'Я могу описать, во что верю и что для меня по-настоящему важно.', trait:'total'}
+  ],
+  interpret:(total)=>{
+    return [{name:'Интеграция личности', value:total, max:40, color: total>=30?'green':total>=18?'yellow':'red',
+      desc: total>=30?'Высокая — вы целостны и согласованы. Это состояние зрелой личности.':total>=18?'Средняя — в целом вы целостны, но есть внутренние противоречия.':'Низкая — внутренние противоречия вызывают дискомфорт. Рекомендуется психотерапия.'}];
+  }
+},
+{
+  id:'time_perspective', cat:'Личность', emoji:'⏳',
+  name:'Шкала временной перспективы',
+  freqDays:180,
+  desc:'Как вы относитесь к прошлому, настоящему и будущему',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто думаю о будущем и строю долгосрочные планы.', trait:'FUT'},
+    {text:'Я умею наслаждаться настоящим моментом, не откладывая жизнь на потом.', trait:'PRES'},
+    {text:'Я часто возвращаюсь мыслями в прошлое, анализирую его.', trait:'PAST'},
+    {text:'Мне трудно планировать дальше, чем на неделю вперёд.', trait:'PRES', reverse:true},
+    {text:'Я верю, что мои действия сейчас определят моё будущее.', trait:'FUT'},
+    {text:'Прошлое сильно влияет на мои решения и реакции сегодня.', trait:'PAST'},
+    {text:'Я живу сегодняшним днём и не люблю загадывать.', trait:'PRES'},
+    {text:'Мне важно оставить след в будущем, сделать что-то значимое.', trait:'FUT'}
+  ],
+  interpret:(s)=>{
+    const fut=s.FUT||0, past=s.PAST||0, pres=s.PRES||0;
+    const dominant = fut>=past && fut>=pres ? 'Будущее' : past>=pres ? 'Прошлое' : 'Настоящее';
+    return [
+      {name:'Ориентация на будущее', value:fut, max:25, color: fut>=17?'green':'yellow', desc: fut>=17?'Вы стратегически мыслите, планируете будущее. Это связано с успехом.':'Вы меньше думаете о будущем, живёте текущим моментом.'},
+      {name:'Ориентация на прошлое', value:past, max:20, color: past>=14?'yellow':'green', desc: past>=14?'Прошлое сильно влияет на ваше настоящее. Возможно, есть незакрытые ситуации.':'Прошлое не довлеет над вами, вы свободны от его влияния.'},
+      {name:'Ориентация на настоящее', value:pres, max:15, color: pres>=10?'green':'yellow', desc: pres>=10?'Вы умеете жить настоящим, наслаждаться моментом.':'Вы редко бываете в настоящем, чаще в мыслях о прошлом или будущем.'},
+      {name:'Преобладающая ориентация', value:0, max:0, color:'green', desc:`Ваша основная временная ориентация: ${dominant}. Оптимально — баланс между прошлым, настоящим и будущим.`}
+    ];
+  }
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'goal_setting', cat:'Поведение', emoji:'🎯',
+  name:'Шкала постановки целей',
+  freqDays:90,
+  desc:'Насколько вы умеете ставить и достигать цели',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чётко формулирую свои цели и знаю, чего хочу достичь.', trait:'total'},
+    {text:'Мои цели конкретны и измеримы, а не размыты.', trait:'total'},
+    {text:'Я разбиваю большие цели на маленькие шаги.', trait:'total'},
+    {text:'Я регулярно проверяю прогресс в достижении целей.', trait:'total'},
+    {text:'Я ставлю реалистичные сроки для своих целей.', trait:'total'},
+    {text:'Я часто ставлю цели, но не довожу их до конца.', trait:'total', reverse:true},
+    {text:'Я записываю свои цели и планы.', trait:'total'},
+    {text:'Я умею корректировать цели, если обстоятельства изменились.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Постановка целей',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы умеете ставить чёткие цели и достигать их. Это основа успеха.':total>=18?'Средняя — цели есть, но не всегда конкретны и достижимы.':'Низкая — стоит научиться формулировать конкретные и реалистичные цели (техника SMART).'}]
+},
+{
+  id:'delayed_gratification', cat:'Поведение', emoji:'⏳',
+  name:'Шкала отложенного вознаграждения',
+  freqDays:90,
+  desc:'Способность ждать ради большей награды',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу отказаться от маленького удовольствия сейчас ради большой награды в будущем.', trait:'total'},
+    {text:'Я умею ждать и не требую немедленного результата.', trait:'total'},
+    {text:'Я готов вкладываться в долгосрочные проекты, даже если результат не сразу.', trait:'total'},
+    {text:'Мне трудно устоять перед соблазном, даже если это вредит долгосрочным целям.', trait:'total', reverse:true},
+    {text:'Я предпочитаю маленькую, но быструю награду большой, но отложенной.', trait:'total', reverse:true},
+    {text:'Я способен отложить удовольствие ради важного дела.', trait:'total'},
+    {text:'Я легко поддаюсь импульсивным желаниям.', trait:'total', reverse:true},
+    {text:'У меня хорошая самодисциплина в достижении целей.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Отложенное вознаграждение',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы умеете ждать и вкладываться в долгосрочные цели. Это связано с успехом.':total>=18?'Средняя — иногда вы поддаётесь сиюминутным желаниям.':'Низкая — вы склонны к импульсивным решениям в ущерб долгосрочным целям.'}]
+},
+{
+  id:'self_motivation', cat:'Личность', emoji:'🔥',
+  name:'Шкала внутренней мотивации',
+  freqDays:90,
+  desc:'Что движет вами: интерес или внешние стимулы',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я делаю то, что делаю, потому что мне это искренне интересно.', trait:'total'},
+    {text:'Мне важно получать удовольствие от самого процесса, а не только от результата.', trait:'total'},
+    {text:'Я часто занимаюсь самообразованием из внутреннего интереса.', trait:'total'},
+    {text:'Я делаю дела только под давлением внешних обстоятельств.', trait:'total', reverse:true},
+    {text:'Я чувствую внутренний огонь и желание развиваться.', trait:'total'},
+    {text:'Мне нужны внешние награды или наказания, чтобы что-то делать.', trait:'total', reverse:true},
+    {text:'Я выбираю занятия, которые приносят мне радость.', trait:'total'},
+    {text:'Я теряю интерес к делу, если оно перестаёт быть увлекательным.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>[{name:'Внутренняя мотивация',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы движимы внутренним интересом. Это связано с устойчивой мотивацией и благополучием.':total>=18?'Средняя — иногда вы теряете интерес, но в целом мотивированы.':'Низкая — вы в основном движимы внешними стимулами. Стоит найти то, что вас искренне увлекает.'}]
+},
+{
+  id:'attention', cat:'Мышление', emoji:'🎯',
+  name:'Шкала устойчивости внимания',
+  freqDays:30,
+  desc:'Способность концентрироваться',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Мне трудно долго удерживать внимание на одной задаче.', trait:'total', reverse:true},
+    {text:'Я легко отвлекаюсь на внешние стимулы.', trait:'total', reverse:true},
+    {text:'Я могу сосредоточиться на задаче на длительное время.', trait:'total'},
+    {text:'Мне сложно читать длинные тексты без потери концентрации.', trait:'total', reverse:true},
+    {text:'Я замечаю, что переключаюсь между задачами, не завершая их.', trait:'total', reverse:true},
+    {text:'В шумной обстановке мне трудно сконцентрироваться.', trait:'total', reverse:true},
+    {text:'Я могу погружаться в работу с полной отдачей.', trait:'total'},
+    {text:'Мне легко вернуться к задаче после прерывания.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Устойчивость внимания',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы хорошо концентрируетесь, это важно для продуктивности.':total>=18?'Средняя — вам бывает сложно удерживать внимание.':'Низкая — проблемы с концентрацией могут говорить о СДВГ, тревоге или переутомлении.'}]
+},
+{
+  id:'planning', cat:'Поведение', emoji:'📋',
+  name:'Шкала планирования',
+  freqDays:30,
+  desc:'Умение планировать и организовывать',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я планирую свои дела заранее, а не действую спонтанно.', trait:'total'},
+    {text:'Я использую ежедневник или приложение для планирования.', trait:'total'},
+    {text:'Я расставляю приоритеты при планировании дня.', trait:'total'},
+    {text:'Я часто забываю о важных делах из-за плохого планирования.', trait:'total', reverse:true},
+    {text:'Я разбиваю крупные дела на мелкие задачи.', trait:'total'},
+    {text:'Мне сложно следовать даже простому расписанию.', trait:'total', reverse:true},
+    {text:'Я успеваю делать всё запланированное.', trait:'total'},
+    {text:'Я оцениваю время, необходимое на задачу, реалистично.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Планирование',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы хорошо планируете и организуете своё время.':total>=18?'Среднее — планы есть, но не всегда соблюдаются.':'Низкое — стоит освоить техники тайм-менеджмента.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'loneliness_short', cat:'Отношения', emoji:'🧍',
+  name:'Краткая шкала одиночества (UCLA-8)',
+  freqDays:30,
+  desc:'Быстрая оценка чувства изоляции',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто'],
+  questions:[
+    {text:'Как часто вы чувствуете, что вам не с кем поговорить по душам?', trait:'total'},
+    {text:'Как часто вы ощущаете себя частью группы друзей?', trait:'total', reverse:true},
+    {text:'Как часто вам не хватает общения с людьми?', trait:'total'},
+    {text:'Как часто вы чувствуете себя изолированным от окружающих?', trait:'total'},
+    {text:'Как часто вы легко находите компанию, когда хотите?', trait:'total', reverse:true},
+    {text:'Как часто ваши отношения кажутся поверхностными?', trait:'total'},
+    {text:'Как часто вы ощущаете, что вас никто по-настоящему не знает?', trait:'total'},
+    {text:'Как часто вы чувствуете себя в кругу близких людей?', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>[{name:'Одиночество',value:total,max:24,color:total>=16?'red':total>=10?'yellow':'green',
+    desc:total>=16?'Высокое чувство одиночества. Возможно, стоит расширить круг общения.':total>=10?'Умеренное.':'Низкое — вы чувствуете связь с людьми.'}]
+},
+{
+  id:'empathy_short', cat:'Отношения', emoji:'💗',
+  name:'Краткая шкала эмпатии',
+  freqDays:180,
+  desc:'Эмоциональная отзывчивость к другим',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто чувствую то же, что и окружающие люди.', trait:'total'},
+    {text:'Меня искренне трогают проблемы других людей.', trait:'total'},
+    {text:'Я легко могу поставить себя на место другого человека.', trait:'total'},
+    {text:'Мне сложно понять, что чувствуют другие люди.', trait:'total', reverse:true},
+    {text:'Я стараюсь поддержать человека, когда ему плохо.', trait:'total'},
+    {text:'Я замечаю, когда кто-то расстроен, даже если он не говорит об этом.', trait:'total'},
+    {text:'Чужие переживания оставляют меня равнодушным.', trait:'total', reverse:true},
+    {text:'Я умею слушать и сопереживать, не обесценивая чувства другого.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Эмпатия',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы чуткий и отзывчивый человек, умеете понимать чувства других.':total>=18?'Средняя — вы способны к эмпатии, но иногда держите дистанцию.':'Низкая — вам может быть трудно понимать чужие эмоции. Развитие эмпатии улучшит отношения.'}]
+},
+{
+  id:'rejection_sensitivity', cat:'Отношения', emoji:'💔',
+  name:'Шкала чувствительности к отвержению',
+  freqDays:90,
+  desc:'Насколько остро вы реагируете на отвержение',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я остро реагирую даже на малейшие признаки отвержения.', trait:'total'},
+    {text:'Я часто боюсь, что меня могут покинуть близкие люди.', trait:'total'},
+    {text:'Критика в мой адрес кажется мне невыносимой.', trait:'total'},
+    {text:'Я ожидаю отвержения, даже когда для этого нет причин.', trait:'total'},
+    {text:'Я перепроверяю, любят ли меня, ищу подтверждения.', trait:'total'},
+    {text:'Отказ воспринимается мной как катастрофа.', trait:'total'},
+    {text:'Я спокойно отношусь к тому, что не всем могу нравиться.', trait:'total', reverse:true},
+    {text:'После отказа я долго не могу прийти в себя.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Чувствительность к отвержению',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — вы болезненно реагируете на отвержение, это может вызывать тревогу в отношениях.':total>=18?'Умеренная — иногда вы остро реагируете, но справляетесь.':'Низкая — вы устойчивы к отказам и отвержению.'}]
+},
+{
+  id:'fear_intimacy', cat:'Отношения', emoji:'🚧',
+  name:'Шкала страха близости (FIS)',
+  freqDays:180,
+  desc:'Избегание эмоциональной интимности',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Мне некомфортно от эмоциональной близости с другими людьми.', trait:'total'},
+    {text:'Я боюсь отвержения, поэтому предпочитаю держать дистанцию.', trait:'total'},
+    {text:'Я стараюсь сохранять независимость и не привязываться.', trait:'total'},
+    {text:'Я избегаю глубоких чувств и разговоров о них.', trait:'total'},
+    {text:'Близость кажется мне опасной и уязвимой.', trait:'total'},
+    {text:'Я предпочитаю одиночество близким отношениям.', trait:'total'},
+    {text:'Мне легко открываться близким людям.', trait:'total', reverse:true},
+    {text:'Я чувствую себя в безопасности, когда рядом близкий человек.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>[{name:'Страх близости',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокий — вы избегаете близости, это мешает строить глубокие отношения. Рекомендуется психотерапия.':total>=18?'Умеренный — иногда вы держите дистанцию.':'Низкий — вы открыты к близости.'}]
+},
+{
+  id:'toxic_relations', cat:'Отношения', emoji:'⚠️',
+  name:'Шкала склонности к токсичным отношениям',
+  freqDays:90,
+  desc:'Склонность попадать в нездоровые отношения',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто оказываюсь в отношениях, где меня обесценивают.', trait:'total'},
+    {text:'Я терплю плохое обращение, потому что боюсь одиночества.', trait:'total'},
+    {text:'Я оправдываю партнёра, даже когда он причиняет мне боль.', trait:'total'},
+    {text:'Я притягиваю людей, склонных к манипуляциям.', trait:'total'},
+    {text:'Я часто беру на себя вину в конфликтах.', trait:'total'},
+    {text:'Мне сложно уйти из отношений, даже если они разрушают меня.', trait:'total'},
+    {text:'Я знаю свои границы и не позволяю их нарушать.', trait:'total', reverse:true},
+    {text:'Я выбираю партнёров, которые уважают меня.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>[{name:'Склонность к токсичным отношениям',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — вы склонны попадать в токсичные отношения. Рекомендуется работа с психологом.':total>=18?'Умеренная — бывают сложные отношения, но вы справляетесь.':'Низкая — вы умеете строить здоровые отношения.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'self_image', cat:'Личность', emoji:'🪞',
+  name:'Шкала образа Я',
+  freqDays:90,
+  desc:'Насколько позитивно вы себя воспринимаете',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'У меня в целом позитивный образ себя.', trait:'total'},
+    {text:'Я могу описать себя положительно, не испытывая неловкости.', trait:'total'},
+    {text:'Я принимаю свою внешность и личностные особенности.', trait:'total'},
+    {text:'Я часто испытываю стыд за то, какой я есть.', trait:'total', reverse:true},
+    {text:'Я вижу в себе больше хорошего, чем плохого.', trait:'total'},
+    {text:'Я могу назвать свои сильные стороны без сомнений.', trait:'total'},
+    {text:'Мне сложно принять свои недостатки.', trait:'total', reverse:true},
+    {text:'Я чувствую себя комфортно в своей личности.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Образ Я',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Позитивный — вы воспринимаете себя хорошо, это основа уверенности.':total>=18?'Средний — есть как позитивные, так и негативные аспекты.':'Негативный — вы себя недооцениваете. Рекомендуется работа с психологом.'}]
+},
+{
+  id:'identity', cat:'Личность', emoji:'🧭',
+  name:'Шкала идентичности',
+  freqDays:180,
+  desc:'Насколько вы понимаете, кто вы',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо понимаю, кто я и что для меня важно.', trait:'total'},
+    {text:'У меня есть устойчивые ценности, на которые я опираюсь.', trait:'total'},
+    {text:'Я могу описать свою идентичность словами.', trait:'total'},
+    {text:'Я чувствую растерянность, когда думаю о том, кто я.', trait:'total', reverse:true},
+    {text:'Моя идентичность не зависит от мнения окружающих.', trait:'total'},
+    {text:'Я чувствую внутреннюю устойчивость и опору.', trait:'total'},
+    {text:'Я часто меняю представление о себе.', trait:'total', reverse:true},
+    {text:'Я знаю свои ценности и следую им в жизни.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Идентичность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Устойчивая — вы понимаете, кто вы, и опираетесь на свои ценности.':total>=18?'Средняя — в целом понимаете себя, но есть сомнения.':'Размытая — вам сложно понять, кто вы. Рекомендуется работа с психологом.'}]
+},
+{
+  id:'self_respect', cat:'Личность', emoji:'👑',
+  name:'Шкала самоуважения',
+  freqDays:60,
+  desc:'Насколько вы уважаете себя',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я уважаю себя как личность.', trait:'total'},
+    {text:'Я не позволяю другим унижать меня.', trait:'total'},
+    {text:'Я считаю свои потребности важными.', trait:'total'},
+    {text:'Я часто пренебрегаю своими интересами ради других.', trait:'total', reverse:true},
+    {text:'Я достоин хорошего отношения к себе.', trait:'total'},
+    {text:'Я не позволяю себе самоуничижительные мысли.', trait:'total'},
+    {text:'Я оправдываю плохое отношение к себе.', trait:'total', reverse:true},
+    {text:'Я чувствую внутреннее достоинство.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Самоуважение',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы уважаете себя и не позволяете себя унижать.':total>=18?'Среднее — есть зоны, где вы себя недооцениваете.':'Низкое — вы пренебрегаете собой. Рекомендуется работа с психологом.'}]
+},
+{
+  id:'shame_vs_guilt', cat:'Эмоции', emoji:'⚖️',
+  name:'Шкала «стыд или вина»',
+  freqDays:90,
+  desc:'Что вы чувствуете при ошибках',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Когда я ошибаюсь, я чувствую себя плохим человеком, а не просто совершившим ошибку.', trait:'SHAME'},
+    {text:'Когда я ошибаюсь, я думаю о конкретном поступке, а не о себе в целом.', trait:'GUILT'},
+    {text:'Мне хочется исчезнуть, спрятаться после ошибки.', trait:'SHAME'},
+    {text:'Я могу признать ошибку и извиниться.', trait:'GUILT'},
+    {text:'Я чувствую себя никчёмным после промаха.', trait:'SHAME'},
+    {text:'Я переживаю о том, как мой поступок повлиял на других.', trait:'GUILT'},
+    {text:'Я часто испытываю глобальное самоосуждение.', trait:'SHAME'},
+    {text:'Я стараюсь исправить то, что сделал не так.', trait:'GUILT'}
+  ],
+  interpret:(s)=>{
+    const shame=s.SHAME||0, guilt=s.GUILT||0;
+    return [
+      {name:'Стыд', value:shame, max:20, color: shame>=14?'red':shame>=8?'yellow':'green',
+       desc: shame>=14?'Высокий — вы склонны к глобальному самоосуждению. Это разрушает самооценку.':shame>=8?'Умеренный.':'Низкий — вы редко испытываете стыд.'},
+      {name:'Вина', value:guilt, max:20, color: guilt>=14?'yellow':'green',
+       desc: guilt>=14?'Высокая — вы чувствуете ответственность за поступки. Это здоровое чувство.':guilt>=8?'Умеренная.':'Низкая.'}
+    ];
+  }
+},
+{
+  id:'self_forgiveness2', cat:'Эмоции', emoji:'🕊️',
+  name:'Шкала самопрощения (расширенная)',
+  freqDays:90,
+  desc:'Умение прощать себя и двигаться вперёд',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я могу простить себя за серьёзные ошибки прошлого.', trait:'total'},
+    {text:'Я не позволяю прошлому определять моё настоящее.', trait:'total'},
+    {text:'Я освобождаюсь от чувства вины, когда понимаю, что сделал всё возможное.', trait:'total'},
+    {text:'Я часто возвращаюсь к старым ошибкам и корю себя.', trait:'total', reverse:true},
+    {text:'Я могу извлечь урок из ошибки и не тащить её дальше.', trait:'total'},
+    {text:'Я верю, что заслуживаю прощения.', trait:'total'},
+    {text:'Мне кажется, что я не могу себя простить.', trait:'total', reverse:true},
+    {text:'Я отношусь к себе с состраданием, оглядываясь на прошлое.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Самопрощение',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы умеете прощать себя. Это освобождает энергию для жизни.':total>=18?'Среднее — иногда вы застреваете в прошлом.':'Низкое — вы не можете простить себя. Рекомендуется психотерапия.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'social_phobia', cat:'Настроение', emoji:'😨',
+  name:'Шкала социальных страхов',
+  freqDays:90,
+  desc:'Страх социальных ситуаций',
+  type:'likert',
+  scale:['Совсем не беспокоит','Слегка','Умеренно','Сильно','Очень сильно'],
+  questions:[
+    {text:'Я боюсь знакомиться с новыми людьми.', trait:'total'},
+    {text:'Я избегаю телефонных звонков.', trait:'total'},
+    {text:'Я боюсь публичных выступлений.', trait:'total'},
+    {text:'Я боюсь, что обо мне плохо подумают.', trait:'total'},
+    {text:'Я чувствую неловкость в компании незнакомых людей.', trait:'total'},
+    {text:'Я избегаю ситуаций, где могу оказаться в центре внимания.', trait:'total'},
+    {text:'Я боюсь есть или пить на людях.', trait:'total'},
+    {text:'Я чувствую тревогу, когда мне нужно что-то попросить у других.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Социальные страхи',value:total,max:40,color:total>=28?'red':total>=16?'yellow':'green',
+    desc:total>=28?'Высокие — социальные страхи мешают жить. Рекомендуется КПТ.':total>=16?'Умеренные — есть дискомфорт, но вы справляетесь.':'Низкие — вы комфортно чувствуете себя в обществе.'}]
+},
+{
+  id:'anxiety_life', cat:'Настроение', emoji:'🌪️',
+  name:'Шкала жизненной тревоги',
+  freqDays:30,
+  desc:'Тревожность в повседневной жизни',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто беспокоюсь о будущем.', trait:'total'},
+    {text:'Мне трудно расслабиться даже в спокойной обстановке.', trait:'total'},
+    {text:'Я замечаю, что постоянно нахожусь в напряжении.', trait:'total'},
+    {text:'Я часто прокручиваю в голове тревожные сценарии.', trait:'total'},
+    {text:'Мне сложно заснуть из-за навязчивых мыслей.', trait:'total'},
+    {text:'Я часто испытываю физические симптомы тревоги (сердцебиение, потливость, дрожь).', trait:'total'},
+    {text:'Тревога мешает мне делать то, что я хочу.', trait:'total'},
+    {text:'Я почти всегда настороже, как будто что-то может случиться.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Жизненная тревога',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — тревога мешает жить. Рекомендуется работа с психологом.':total>=18?'Умеренная — есть тревожность, но вы справляетесь.':'Низкая — вы спокойны.'}]
+},
+{
+  id:'panic_attacks', cat:'Настроение', emoji:'😱',
+  name:'Шкала панических атак',
+  freqDays:30,
+  desc:'Скрининг панического расстройства',
+  type:'yn',
+  questions:[
+    {text:'Случались ли у вас внезапные приступы сильного страха без причины?', trait:'total'},
+    {text:'Во время приступа вы чувствовали учащённое сердцебиение, потливость, дрожь?', trait:'total'},
+    {text:'Испытывали ли вы чувство удушья или нехватки воздуха?', trait:'total'},
+    {text:'Боялись ли вы потерять контроль, сойти с ума или умереть?', trait:'total'},
+    {text:'Избегаете ли вы мест, где раньше случались приступы?', trait:'total'},
+    {text:'Беспокоитесь ли вы о повторении приступа?', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Панические атаки',value:total,max:6,color:total>=4?'red':total>=2?'yellow':'green',
+    desc:total>=4?'Высокая вероятность панического расстройства. Рекомендуется консультация специалиста.':total>=2?'Есть отдельные симптомы. Стоит наблюдать.':'Признаков панических атак нет.'}]
+},
+{
+  id:'health_anxiety', cat:'Настроение', emoji:'🩺',
+  name:'Шкала тревоги о здоровье',
+  freqDays:60,
+  desc:'Ипохондрические тенденции',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто беспокоюсь о своём здоровье, даже когда нет симптомов.', trait:'total'},
+    {text:'Я замечаю малейшие изменения в теле и пугаюсь.', trait:'total'},
+    {text:'Я часто проверяю симптомы в интернете.', trait:'total'},
+    {text:'Я хожу к врачам чаще, чем нужно, чтобы успокоиться.', trait:'total'},
+    {text:'Я боюсь серьёзных болезней.', trait:'total'},
+    {text:'Мне сложно поверить врачу, который говорит, что я здоров.', trait:'total'},
+    {text:'Я спокойно отношусь к своему здоровью.', trait:'total', reverse:true},
+    {text:'Мысли о болезнях отвлекают меня от жизни.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Тревога о здоровье',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — тревога о здоровье мешает жить. Рекомендуется работа с психологом.':total>=18?'Умеренная — иногда вы беспокоитесь.':'Низкая — вы спокойно относитесь к здоровью.'}]
+},
+{
+  id:'uncertainty_life', cat:'Мышление', emoji:'❓',
+  name:'Шкала принятия неопределённости',
+  freqDays:90,
+  desc:'Способность жить с неизвестностью',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я спокойно принимаю, что не всё в жизни можно предсказать.', trait:'total'},
+    {text:'Неопределённость не пугает меня, а иногда даже интересна.', trait:'total'},
+    {text:'Я могу расслабиться, даже если не знаю, чем всё закончится.', trait:'total'},
+    {text:'Неопределённость вызывает у меня тревогу и стресс.', trait:'total', reverse:true},
+    {text:'Я гибко реагирую на изменения планов.', trait:'total'},
+    {text:'Я чувствую себя в безопасности, даже когда не знаю будущего.', trait:'total'},
+    {text:'Мне сложно переносить неясные ситуации.', trait:'total', reverse:true},
+    {text:'Я доверяю жизни и её процессу.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Принятие неопределённости',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы спокойно переносите неизвестность. Это признак психологической зрелости.':total>=18?'Среднее — иногда неопределённость тревожит.':'Низкое — вы плохо переносите неизвестность, стоит поработать с психологом.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'values_clarity', cat:'Личность', emoji:'🧭',
+  name:'Шкала ясности ценностей',
+  freqDays:180,
+  desc:'Понимаете ли вы свои ценности',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чётко понимаю, что для меня важно в жизни.', trait:'total'},
+    {text:'Я могу назвать свои главные ценности.', trait:'total'},
+    {text:'Я принимаю решения, опираясь на свои ценности.', trait:'total'},
+    {text:'Я часто действую вопреки своим ценностям.', trait:'total', reverse:true},
+    {text:'Мои ценности помогают мне в трудные времена.', trait:'total'},
+    {text:'Я чувствую внутреннее согласие с тем, как живу.', trait:'total'},
+    {text:'Мне сложно понять, что для меня по-настоящему важно.', trait:'total', reverse:true},
+    {text:'Я стараюсь жить в соответствии со своими убеждениями.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Ясность ценностей',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы хорошо понимаете свои ценности и живёте в согласии с ними.':total>=18?'Средняя — в целом понимаете, но иногда теряете ориентиры.':'Низкая — стоит поработать над пониманием своих ценностей с психологом.'}]
+},
+{
+  id:'spirituality', cat:'Личность', emoji:'🕉️',
+  name:'Шкала духовности',
+  freqDays:180,
+  desc:'Связь с чем-то большим, чем вы',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую связь с чем-то большим, чем я сам.', trait:'total'},
+    {text:'У меня есть духовные или философские убеждения.', trait:'total'},
+    {text:'Медитация, молитва или практики осознанности помогают мне.', trait:'total'},
+    {text:'Я редко задумываюсь о духовных вопросах.', trait:'total', reverse:true},
+    {text:'Я чувствую внутренний покой, когда думаю о духовном.', trait:'total'},
+    {text:'Вера или философия помогают мне справляться с трудностями.', trait:'total'},
+    {text:'Мне чужды духовные практики.', trait:'total', reverse:true},
+    {text:'Я ощущаю благодарность и связь с миром.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Духовность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — духовность помогает вам в жизни и даёт внутреннюю опору.':total>=18?'Средняя — есть духовные интересы.':'Низкая — возможно, вам не близки духовные практики, и это нормально.'}]
+},
+{
+  id:'meaning_relations', cat:'Отношения', emoji:'💞',
+  name:'Шкала осмысленности отношений',
+  freqDays:90,
+  desc:'Насколько отношения наполнены смыслом',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Мои близкие отношения наполнены глубоким смыслом.', trait:'total'},
+    {text:'Я чувствую, что мои отношения развивают меня.', trait:'total'},
+    {text:'Я вкладываю время и энергию в важные для меня отношения.', trait:'total'},
+    {text:'Мои отношения поверхностны и не приносят радости.', trait:'total', reverse:true},
+    {text:'Я чувствую благодарность за людей в моей жизни.', trait:'total'},
+    {text:'Мне важно разделять ценности с близкими.', trait:'total'},
+    {text:'Я часто чувствую пустоту в отношениях.', trait:'total', reverse:true},
+    {text:'Мои отношения помогают мне расти как личности.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Осмысленность отношений',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — ваши отношения наполнены смыслом и развивают вас.':total>=18?'Средняя — есть глубокие связи, но не всегда.':'Низкая — стоит поискать более осмысленные связи.'}]
+},
+{
+  id:'existential_anxiety', cat:'Мышление', emoji:'🌌',
+  name:'Шкала экзистенциальной тревоги',
+  freqDays:180,
+  desc:'Тревога о смысле, смерти, свободе',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто задумываюсь о смысле жизни и смерти.', trait:'total'},
+    {text:'Мысли о конечности жизни вызывают у меня тревогу.', trait:'total'},
+    {text:'Я боюсь, что моя жизнь может оказаться бессмысленной.', trait:'total'},
+    {text:'Я чувствую тревогу, когда думаю о свободе выбора.', trait:'total'},
+    {text:'Я спокойно отношусь к экзистенциальным вопросам.', trait:'total', reverse:true},
+    {text:'Я часто чувствую пустоту и потерянность.', trait:'total'},
+    {text:'Размышления о смысле помогают мне жить осознаннее.', trait:'total'},
+    {text:'Мне сложно принять необратимость некоторых вещей.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Экзистенциальная тревога',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — экзистенциальные вопросы тревожат вас. Рекомендуется работа с психологом.':total>=18?'Умеренная — иногда задумываетесь о смысле.':'Низкая — вы спокойно относитесь к экзистенциальным вопросам.'}]
+},
+{
+  id:'gratitude_deep', cat:'Эмоции', emoji:'🙏',
+  name:'Шкала благодарности (расширенная)',
+  freqDays:60,
+  desc:'Способность замечать хорошее в жизни',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я регулярно замечаю моменты, за которые можно быть благодарным.', trait:'total'},
+    {text:'Я выражаю благодарность людям, которые этого заслуживают.', trait:'total'},
+    {text:'Дневник благодарности или похожие практики помогают мне.', trait:'total'},
+    {text:'Я часто жалуюсь на жизнь, не замечая хорошего.', trait:'total', reverse:true},
+    {text:'Я чувствую, что мне повезло в жизни.', trait:'total'},
+    {text:'Благодарность помогает мне справляться с трудностями.', trait:'total'},
+    {text:'Я редко испытываю благодарность.', trait:'total', reverse:true},
+    {text:'Я ценю простые вещи: еду, тепло, природу.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Благодарность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — благодарность значительно улучшает качество жизни.':total>=18?'Средняя — иногда вы замечаете хорошее.':'Низкая — стоит развивать практику благодарности.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'body_awareness', cat:'Поведение', emoji:'🧘',
+  name:'Шкала телесной осознанности',
+  freqDays:60,
+  desc:'Связь с телесными ощущениями',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо чувствую сигналы своего тела (голод, усталость, напряжение).', trait:'total'},
+    {text:'Я обращаю внимание на дыхание и телесные ощущения.', trait:'total'},
+    {text:'Я замечаю, когда тело напряжено, и могу расслабиться.', trait:'total'},
+    {text:'Я часто не замечаю, что устал или голоден.', trait:'total', reverse:true},
+    {text:'Я живу в основном в голове, а не в теле.', trait:'total', reverse:true},
+    {text:'Я могу определить, где в теле локализуется та или иная эмоция.', trait:'total'},
+    {text:'Я редко обращаю внимание на своё тело.', trait:'total', reverse:true},
+    {text:'Практики (йога, растяжка, дыхание) помогают мне чувствовать тело.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Телесная осознанность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы хорошо чувствуете своё тело. Это важно для здоровья.':total>=18?'Средняя — иногда обращаете внимание на тело.':'Низкая — стоит развивать связь с телом, это помогает снизить стресс.'}]
+},
+{
+  id:'eating_habits', cat:'Поведение', emoji:'🍽️',
+  name:'Шкала пищевых привычек',
+  freqDays:30,
+  desc:'Отношение к еде и питанию',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я питаюсь регулярно, без длительных перерывов.', trait:'total'},
+    {text:'В моём рационе достаточно овощей, фруктов, белков.', trait:'total'},
+    {text:'Я не заедаю стресс и не переедаю.', trait:'total'},
+    {text:'Я часто ем на ходу или перед экраном.', trait:'total', reverse:true},
+    {text:'Я осознанно выбираю продукты, а не импульсивно.', trait:'total'},
+    {text:'Я соблюдаю баланс между полезным и вкусным.', trait:'total'},
+    {text:'Еда — мой главный способ справиться с эмоциями.', trait:'total', reverse:true},
+    {text:'Я доволен своими пищевыми привычками.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Пищевые привычки',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Здоровые — у вас хорошие пищевые привычки. Это вклад в здоровье.':total>=18?'Средние — есть зоны роста.':'Нездоровые — стоит пересмотреть рацион и обратиться к специалисту.'}]
+},
+{
+  id:'sleep_quality', cat:'Поведение', emoji:'😴',
+  name:'Шкала качества сна',
+  freqDays:14,
+  desc:'Оценка сна',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Мне трудно заснуть вечером.', trait:'total', reverse:true},
+    {text:'Я просыпаюсь ночью и не могу снова заснуть.', trait:'total', reverse:true},
+    {text:'Утром я чувствую себя отдохнувшим.', trait:'total'},
+    {text:'Я соблюдаю режим сна и просыпаюсь в одно и то же время.', trait:'total'},
+    {text:'Перед сном я смотрю в экран.', trait:'total', reverse:true},
+    {text:'Я высыпаюсь и восстанавливаюсь за ночь.', trait:'total'},
+    {text:'Я испытываю дневную сонливость.', trait:'total', reverse:true},
+    {text:'Мой сон глубокий и спокойный.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Качество сна',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Хорошее — ваш сон восстанавливает силы.':total>=18?'Среднее — есть проблемы со сном.':'Плохое — серьёзные нарушения. Рекомендуется консультация специалиста.'}]
+},
+{
+  id:'physical_activity2', cat:'Поведение', emoji:'🏃',
+  name:'Шкала физической активности',
+  freqDays:30,
+  desc:'Регулярность движения',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я занимаюсь спортом не реже 3 раз в неделю.', trait:'total'},
+    {text:'Я хожу пешком не менее 30 минут в день.', trait:'total'},
+    {text:'Я чувствую прилив энергии после физической нагрузки.', trait:'total'},
+    {text:'Я веду малоподвижный образ жизни.', trait:'total', reverse:true},
+    {text:'Движение — часть моей ежедневной рутины.', trait:'total'},
+    {text:'Я стараюсь больше двигаться в течение дня.', trait:'total'},
+    {text:'Я избегаю физической нагрузки.', trait:'total', reverse:true},
+    {text:'Я доволен своей физической формой.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Физическая активность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы активны. Это улучшает настроение и здоровье.':total>=18?'Средняя — есть зоны роста.':'Низкая — стоит увеличить физическую нагрузку.'}]
+},
+{
+  id:'digital_detox', cat:'Поведение', emoji:'📵',
+  name:'Шкала цифровой зависимости',
+  freqDays:30,
+  desc:'Зависимость от телефона и интернета',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую тревогу, когда телефон не рядом.', trait:'total'},
+    {text:'Я провожу в соцсетях больше времени, чем планировал.', trait:'total'},
+    {text:'Я часто проверяю телефон без причины.', trait:'total'},
+    {text:'Экранное время мешает мне работать или спать.', trait:'total'},
+    {text:'Я откладываю дела из-за интернета.', trait:'total'},
+    {text:'Я не могу сосредоточиться без проверки уведомлений.', trait:'total'},
+    {text:'Я листаю ленту, даже когда мне скучно.', trait:'total'},
+    {text:'Я легко могу провести день без интернета.', trait:'total', reverse:true}
+  ],
+  interpret:(total)=>[{name:'Цифровая зависимость',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокая — гаджеты управляют вашим временем. Рекомендуется цифровая детоксикация.':total>=18?'Умеренная.':'Низкая — вы контролируете своё экранное время.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'active_listening', cat:'Отношения', emoji:'👂',
+  name:'Шкала активного слушания',
+  freqDays:60,
+  desc:'Умение слышать и понимать собеседника',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я внимательно слушаю собеседника, не перебивая.', trait:'total'},
+    {text:'Я уточняю, правильно ли понял, прежде чем отвечать.', trait:'total'},
+    {text:'Я могу повторить слова собеседника, чтобы убедиться, что понял.', trait:'total'},
+    {text:'Я часто думаю о своём ответе, пока говорит другой.', trait:'total', reverse:true},
+    {text:'Я замечаю невербальные сигналы собеседника.', trait:'total'},
+    {text:'Я стараюсь понять чувства, стоящие за словами.', trait:'total'},
+    {text:'Мне трудно не перебивать, когда я не согласен.', trait:'total', reverse:true},
+    {text:'Собеседники чувствуют, что я их слышу.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Активное слушание',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы умеете слушать, это редкий и ценный навык.':total>=18?'Среднее — иногда вы отвлекаетесь.':'Низкое — стоит развивать навык слушания.'}]
+},
+{
+  id:'conflict_resolution', cat:'Отношения', emoji:'🤝',
+  name:'Шкала разрешения конфликтов',
+  freqDays:90,
+  desc:'Как вы решаете конфликты',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я стараюсь понять точку зрения другого в конфликте.', trait:'total'},
+    {text:'Я ищу решение, выгодное обеим сторонам.', trait:'total'},
+    {text:'Я сохраняю спокойствие во время конфликта.', trait:'total'},
+    {text:'Я часто перехожу на личности в спорах.', trait:'total', reverse:true},
+    {text:'Я отделяю проблему от человека.', trait:'total'},
+    {text:'Я готов признать свою неправоту.', trait:'total'},
+    {text:'Конфликты редко разрешаются — они тянутся долго.', trait:'total', reverse:true},
+    {text:'После конфликта я стараюсь восстановить отношения.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Разрешение конфликтов',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы умеете решать конфликты конструктивно.':total>=18?'Среднее — иногда конфликты затягиваются.':'Низкое — стоит развивать навыки конструктивного диалога.'}]
+},
+{
+  id:'empathy_cognitive', cat:'Отношения', emoji:'🧠',
+  name:'Шкала когнитивной эмпатии',
+  freqDays:180,
+  desc:'Понимание мыслей и мотивов других',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я хорошо понимаю, почему люди поступают так или иначе.', trait:'total'},
+    {text:'Я могу предсказать реакцию человека на ситуацию.', trait:'total'},
+    {text:'Я понимаю мотивы поведения других людей.', trait:'total'},
+    {text:'Мне трудно понять, о чём думают другие.', trait:'total', reverse:true},
+    {text:'Я замечаю невербальные сигналы и делаю выводы.', trait:'total'},
+    {text:'Я понимаю, что чувствует другой, по его поведению.', trait:'total'},
+    {text:'Люди для меня загадка.', trait:'total', reverse:true},
+    {text:'Я хорошо считываю социальные ситуации.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Когнитивная эмпатия',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы хорошо понимаете людей и их мотивы.':total>=18?'Средняя — иногда вы теряетесь в понимании других.':'Низкая — вам может быть трудно понять причины поведения людей.'}]
+},
+{
+  id:'emotional_expression2', cat:'Эмоции', emoji:'💬',
+  name:'Шкала экспрессивности (расширенная)',
+  freqDays:30,
+  desc:'Насколько вы открыто выражаете эмоции',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я легко говорю о том, что чувствую.', trait:'total'},
+    {text:'Я могу плакать при других, не стесняясь.', trait:'total'},
+    {text:'Я открыто выражаю радость.', trait:'total'},
+    {text:'Я скрываю гнев, даже когда он есть.', trait:'total', reverse:true},
+    {text:'Я могу сказать «мне больно» или «мне обидно».', trait:'total'},
+    {text:'Я выражаю нежность и благодарность словами.', trait:'total'},
+    {text:'Мне сложно говорить о своих чувствах.', trait:'total', reverse:true},
+    {text:'Мои близкие знают, что я чувствую.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Экспрессивность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы открыто выражаете эмоции, это улучшает отношения и снижает стресс.':total>=18?'Средняя — иногда держите чувства в себе.':'Низкая — вам сложно выражать эмоции. Развитие этого навыка улучшит жизнь.'}]
+},
+{
+  id:'assertive_comm', cat:'Отношения', emoji:'🗣️',
+  name:'Шкала ассертивной коммуникации',
+  freqDays:90,
+  desc:'Умение говорить о своих потребностях',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я умею говорить о своих потребностях прямо и уважительно.', trait:'total'},
+    {text:'Я использую «я-сообщения» вместо обвинений.', trait:'total'},
+    {text:'Я могу попросить о том, что мне нужно, не испытывая неловкости.', trait:'total'},
+    {text:'Я часто намекаю вместо того, чтобы говорить прямо.', trait:'total', reverse:true},
+    {text:'Я умею говорить «нет» без чувства вины.', trait:'total'},
+    {text:'Я выражаю несогласие конструктивно.', trait:'total'},
+    {text:'Я боюсь, что мои слова обидят других.', trait:'total', reverse:true},
+    {text:'Я чувствую, что меня слышат, когда я говорю.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Ассертивная коммуникация',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы умеете говорить о своих потребностях уважительно.':total>=18?'Средняя — иногда сложно говорить прямо.':'Низкая — стоит развивать навык ассертивного общения.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'leadership', cat:'Личность', emoji:'👑',
+  name:'Шкала лидерских качеств',
+  freqDays:180,
+  desc:'Склонность к лидерству',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я готов брать на себя ответственность за других.', trait:'total'},
+    {text:'Я умею мотивировать и вдохновлять людей.', trait:'total'},
+    {text:'Я легко принимаю решения в сложных ситуациях.', trait:'total'},
+    {text:'Я стараюсь избегать лидерства.', trait:'total', reverse:true},
+    {text:'Люди часто обращаются ко мне за советом.', trait:'total'},
+    {text:'Я умею делегировать задачи.', trait:'total'},
+    {text:'Я теряюсь, когда нужно вести группу.', trait:'total', reverse:true},
+    {text:'Я вижу, как объединить людей для общей цели.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Лидерские качества',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокие — вы прирождённый лидер.':total>=18?'Средние — можете вести, но не всегда стремитесь.':'Низкие — вы предпочитаете следовать, а не вести.'}]
+},
+{
+  id:'achievement_motivation', cat:'Личность', emoji:'🏆',
+  name:'Шкала мотивации достижения',
+  freqDays:90,
+  desc:'Стремление к успеху',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я ставлю перед собой амбициозные цели.', trait:'total'},
+    {text:'Мне важно достигать высоких результатов.', trait:'total'},
+    {text:'Я готов прилагать большие усилия ради успеха.', trait:'total'},
+    {text:'Я избегаю ситуаций, где могу не добиться успеха.', trait:'total', reverse:true},
+    {text:'Мне нравится соревноваться и побеждать.', trait:'total'},
+    {text:'Я чувствую удовлетворение от достижения целей.', trait:'total'},
+    {text:'Мне безразличны достижения и успех.', trait:'total', reverse:true},
+    {text:'Я стремлюсь к постоянному развитию.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Мотивация достижения',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы нацелены на результат, это движет вас вперёд.':total>=18?'Средняя — есть амбиции, но не всегда хватает настойчивости.':'Низкая — возможно, стоит найти более вдохновляющие цели.'}]
+},
+{
+  id:'career_satisfaction', cat:'Настроение', emoji:'💼',
+  name:'Шкала удовлетворённости карьерой',
+  freqDays:90,
+  desc:'Насколько вы довольны своей работой',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я доволен своей карьерой на данный момент.', trait:'total'},
+    {text:'Моя работа соответствует моим ценностям.', trait:'total'},
+    {text:'Я вижу перспективы развития в своей сфере.', trait:'total'},
+    {text:'Я часто думаю о смене работы.', trait:'total', reverse:true},
+    {text:'Я чувствую, что реализую свой потенциал.', trait:'total'},
+    {text:'Мне нравится то, чем я занимаюсь.', trait:'total'},
+    {text:'Моя работа — источник стресса, а не радости.', trait:'total', reverse:true},
+    {text:'Я рекомендовал бы свою профессию другим.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Удовлетворённость карьерой',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы на своём месте.':total>=18?'Средняя — есть что улучшить.':'Низкая — возможно, стоит задуматься о смене сферы или роли.'}]
+},
+{
+  id:'impostor_syndrome', cat:'Личность', emoji:'🎭',
+  name:'Шкала синдрома самозванца',
+  freqDays:90,
+  desc:'Ощущение, что вы не заслуживаете успеха',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Мне кажется, что мои достижения — случайность.', trait:'total'},
+    {text:'Я боюсь, что окружающие узнают, что я не так хорош, как кажусь.', trait:'total'},
+    {text:'Я приписываю успехи удаче или помощи других.', trait:'total'},
+    {text:'Я не считаю себя достойным своих достижений.', trait:'total'},
+    {text:'Мне кажется, что я обманываю всех вокруг.', trait:'total'},
+    {text:'Даже при успехе я думаю, что просто повезло.', trait:'total'},
+    {text:'Я уверен в своих профессиональных навыках.', trait:'total', reverse:true},
+    {text:'Я боюсь не оправдать ожидания.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Синдром самозванца',value:total,max:40,color:total>=28?'red':total>=16?'yellow':'green',
+    desc:total>=28?'Высокий — вы обесцениваете свои достижения. Рекомендуется работа с психологом.':total>=16?'Умеренный — иногда вы сомневаетесь в себе.':'Низкий — вы адекватно оцениваете свои достижения.'}]
+},
+{
+  id:'burnout_work', cat:'Настроение', emoji:'🔥',
+  name:'Шкала профессионального выгорания',
+  freqDays:30,
+  desc:'Истощение от работы',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто','Почти всегда'],
+  questions:[
+    {text:'Я чувствую себя эмоционально истощённым на работе.', trait:'total'},
+    {text:'К концу рабочего дня я полностью вымотан.', trait:'total'},
+    {text:'Я стал цинично относиться к работе и коллегам.', trait:'total'},
+    {text:'Мне кажется, что я ничего не достигаю.', trait:'total'},
+    {text:'Мне трудно вставать по утрам на работу.', trait:'total'},
+    {text:'Я потерял интерес к работе.', trait:'total'},
+    {text:'Я чувствую, что выкладываюсь больше, чем получаю.', trait:'total'},
+    {text:'Я стал раздражительным на работе.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Профессиональное выгорание',value:total,max:40,color:total>=28?'red':total>=18?'yellow':'green',
+    desc:total>=28?'Высокое — вы на грани выгорания. Требуется отдых и пересмотр нагрузки.':total>=18?'Умеренное — есть признаки выгорания.':'Низкое — вы в ресурсе.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'creativity', cat:'Мышление', emoji:'🎨',
+  name:'Шкала креативности',
+  freqDays:180,
+  desc:'Творческий потенциал',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я часто придумываю нестандартные решения.', trait:'total'},
+    {text:'Мне нравится создавать что-то новое.', trait:'total'},
+    {text:'Я легко генерирую идеи.', trait:'total'},
+    {text:'Я предпочитаю проверенные решения, а не эксперименты.', trait:'total', reverse:true},
+    {text:'Я вижу необычные связи между вещами.', trait:'total'},
+    {text:'Я не боюсь экспериментировать.', trait:'total'},
+    {text:'Я считаю себя не творческим человеком.', trait:'total', reverse:true},
+    {text:'Мне интересно пробовать новое.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Креативность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы творческий человек с богатым воображением.':total>=18?'Средняя — есть творческие задатки.':'Низкая — возможно, вы предпочитаете стабильность и проверенные пути.'}]
+},
+{
+  id:'curiosity', cat:'Мышление', emoji:'🔎',
+  name:'Шкала любопытства',
+  freqDays:90,
+  desc:'Стремление узнавать новое',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Мне интересно узнавать новое в разных областях.', trait:'total'},
+    {text:'Я часто задаю вопросы, чтобы понять, как устроен мир.', trait:'total'},
+    {text:'Мне нравится исследовать незнакомые темы.', trait:'total'},
+    {text:'Мне быстро становится скучно, если тема сложна.', trait:'total', reverse:true},
+    {text:'Я читаю книги и статьи на разные темы.', trait:'total'},
+    {text:'Мне нравится учиться новому.', trait:'total'},
+    {text:'Я редко интересуюсь чем-то новым.', trait:'total', reverse:true},
+    {text:'Я получаю удовольствие от процесса познания.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Любопытство',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — любопытство открывает мир и способствует развитию.':total>=18?'Среднее — иногда вы интересуетесь новым.':'Низкое — возможно, стоит расширить кругозор.'}]
+},
+{
+  id:'playfulness', cat:'Эмоции', emoji:'🎈',
+  name:'Шкала игривости',
+  freqDays:90,
+  desc:'Способность играть и радоваться',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я умею радоваться простым вещам, как в детстве.', trait:'total'},
+    {text:'Я позволяю себе дурачиться и играть.', trait:'total'},
+    {text:'Мне легко рассмешить других.', trait:'total'},
+    {text:'Я слишком серьёзен и редко позволяю себе расслабиться.', trait:'total', reverse:true},
+    {text:'Я люблю игры и развлечения.', trait:'total'},
+    {text:'Во мне живёт внутренний ребёнок.', trait:'total'},
+    {text:'Я считаю, что игра — пустая трата времени.', trait:'total', reverse:true},
+    {text:'Я умею находить радость в мелочах.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Игривость',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы сохраняете живость и радость. Это ресурс.':total>=18?'Средняя — иногда вы позволяете себе расслабиться.':'Низкая — возможно, стоит вернуть в жизнь немного игры.'}]
+},
+{
+  id:'openness_exp', cat:'Личность', emoji:'🚪',
+  name:'Шкала открытости опыту',
+  freqDays:180,
+  desc:'Готовность к новому',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я с интересом отношусь к новому опыту.', trait:'total'},
+    {text:'Я готов пробовать незнакомые вещи.', trait:'total'},
+    {text:'Мне интересны необычные идеи.', trait:'total'},
+    {text:'Я предпочитаю привычное и знакомое.', trait:'total', reverse:true},
+    {text:'Я путешествую, чтобы узнать новое.', trait:'total'},
+    {text:'Я ценю искусство и красоту.', trait:'total'},
+    {text:'Мне сложно принимать непривычное.', trait:'total', reverse:true},
+    {text:'Я с любопытством исследую мир.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Открытость опыту',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы открыты новому, это связано с творчеством и развитием.':total>=18?'Средняя — есть интерес к новому.':'Низкая — вы предпочитаете стабильность и привычное.'}]
+},
+{
+  id:'aesthetic_sensibility', cat:'Эмоции', emoji:'🌸',
+  name:'Шкала эстетической чувствительности',
+  freqDays:180,
+  desc:'Восприимчивость к красоте',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я замечаю красоту в повседневных вещах.', trait:'total'},
+    {text:'Меня трогает музыка, живопись, природа.', trait:'total'},
+    {text:'Я ценю эстетику в дизайне, интерьере, одежде.', trait:'total'},
+    {text:'Я редко обращаю внимание на красоту вокруг.', trait:'total', reverse:true},
+    {text:'Я испытываю сильные эмоции от произведений искусства.', trait:'total'},
+    {text:'Я стремлюсь окружить себя красивыми вещами.', trait:'total'},
+    {text:'Мне безразлична эстетика.', trait:'total', reverse:true},
+    {text:'Я часто испытываю благоговение перед красотой мира.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Эстетическая чувствительность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы чувствительны к красоте, это обогащает жизнь.':total>=18?'Средняя — иногда вы замечаете красоту.':'Низкая — возможно, вы больше ориентированы на практичность.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'coping_strategies', cat:'Эмоции', emoji:'🛠️',
+  name:'Шкала копинг-стратегий',
+  freqDays:90,
+  desc:'Способы справляться со стрессом',
+  type:'likert',
+  scale:['Никогда','Редко','Иногда','Часто'],
+  questions:[
+    {text:'Когда я в стрессе, я анализирую проблему и ищу решение.', trait:'ACTIVE'},
+    {text:'Я обращаюсь за поддержкой к близким.', trait:'SOCIAL'},
+    {text:'Я отвлекаюсь на другие дела, чтобы не думать о проблеме.', trait:'AVOID'},
+    {text:'Я виню себя в происходящем.', trait:'BLAME'},
+    {text:'Я ищу позитивные стороны даже в трудных ситуациях.', trait:'POSITIVE'},
+    {text:'Я изолируюсь от людей, когда мне плохо.', trait:'AVOID'},
+    {text:'Я принимаю ситуацию и адаптируюсь к ней.', trait:'ACTIVE'},
+    {text:'Я использую юмор, чтобы справиться.', trait:'POSITIVE'}
+  ],
+  interpret:(s)=>{
+    const active=(s.ACTIVE||0)+(s.SOCIAL||0)+(s.POSITIVE||0);
+    const avoid=(s.AVOID||0)+(s.BLAME||0);
+    return [
+      {name:'Адаптивные стратегии', value:active, max:16, color: active>=11?'green':active>=7?'yellow':'red',
+       desc: active>=11?'Высокий уровень адаптивных стратегий — вы справляетесь со стрессом конструктивно.':active>=7?'Средний уровень.':'Низкий — стоит развивать активные копинг-стратегии.'},
+      {name:'Неадаптивные стратегии', value:avoid, max:8, color: avoid>=5?'red':avoid>=3?'yellow':'green',
+       desc: avoid>=5?'Высокий уровень неадаптивных стратегий (избегание, самообвинение). Это усугубляет стресс.':avoid>=3?'Умеренный.':'Низкий — вы редко используете неэффективные стратегии.'}
+    ];
+  }
+},
+{
+  id:'relaxation', cat:'Поведение', emoji:'🧘‍♀️',
+  name:'Шкала релаксации',
+  freqDays:30,
+  desc:'Умение расслабляться',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я умею расслабляться и снимать напряжение.', trait:'total'},
+    {text:'Я использую дыхательные практики или медитацию.', trait:'total'},
+    {text:'Я могу переключиться с рабочего режима на отдых.', trait:'total'},
+    {text:'Даже в отпуске я не могу расслабиться.', trait:'total', reverse:true},
+    {text:'Я знаю, что помогает мне восстанавливаться.', trait:'total'},
+    {text:'Я легко засыпаю и восстанавливаюсь за ночь.', trait:'total'},
+    {text:'Мне сложно отключить мысли о делах.', trait:'total', reverse:true},
+    {text:'У меня есть ритуалы отдыха.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Релаксация',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы умеете расслабляться и восстанавливаться.':total>=18?'Средняя — иногда сложно расслабиться.':'Низкая — вы плохо восстанавливаетесь. Рекомендуются практики релаксации.'}]
+},
+{
+  id:'burnout_prevention', cat:'Поведение', emoji:'🛡️',
+  name:'Шкала профилактики выгорания',
+  freqDays:30,
+  desc:'Что вы делаете для предотвращения истощения',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я соблюдаю баланс между работой и отдыхом.', trait:'total'},
+    {text:'Я регулярно беру паузы в течение дня.', trait:'total'},
+    {text:'Я не работаю в выходные и по вечерам.', trait:'total'},
+    {text:'Я игнорирую сигналы усталости и продолжаю работать.', trait:'total', reverse:true},
+    {text:'Я занимаюсь хобби и восстанавливающими занятиями.', trait:'total'},
+    {text:'Я умею говорить «нет» дополнительной нагрузке.', trait:'total'},
+    {text:'Я не помню, когда последний раз отдыхал.', trait:'total', reverse:true},
+    {text:'Я забочусь о своём психическом здоровье.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Профилактика выгорания',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы системно заботитесь о себе. Это защищает от выгорания.':total>=18?'Средняя — есть зоны роста.':'Низкая — вы игнорируете сигналы усталости. Высокий риск выгорания.'}]
+},
+{
+  id:'emotional_recovery', cat:'Эмоции', emoji:'🌱',
+  name:'Шкала эмоционального восстановления',
+  freqDays:60,
+  desc:'Способность восстанавливаться после стресса',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'После сильного стресса я быстро возвращаюсь в норму.', trait:'total'},
+    {text:'Я умею оставлять тяжёлые переживания в прошлом.', trait:'total'},
+    {text:'Я восстанавливаюсь после конфликтов без долгих обид.', trait:'total'},
+    {text:'После стресса я долго не могу прийти в себя.', trait:'total', reverse:true},
+    {text:'У меня есть способы «перезагрузки».', trait:'total'},
+    {text:'Я могу переключиться с тяжёлых мыслей на позитивные.', trait:'total'},
+    {text:'Негативные события оставляют след на недели.', trait:'total', reverse:true},
+    {text:'Я верю в свою способность восстанавливаться.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Эмоциональное восстановление',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы быстро восстанавливаетесь после стресса.':total>=18?'Среднее — иногда сложно вернуться в норму.':'Низкое — стресс надолго выбивает вас. Стоит развивать навыки восстановления.'}]
+},
+{
+  id:'resilience_stress2', cat:'Личность', emoji:'🛡️',
+  name:'Шкала стрессоустойчивости (расширенная)',
+  freqDays:90,
+  desc:'Способность сохранять спокойствие под давлением',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я сохраняю спокойствие в стрессовых ситуациях.', trait:'total'},
+    {text:'Даже под давлением я могу ясно мыслить.', trait:'total'},
+    {text:'Я быстро восстанавливаюсь после потрясений.', trait:'total'},
+    {text:'Стресс не выбивает меня из равновесия надолго.', trait:'total'},
+    {text:'Я умею снимать напряжение конструктивными способами.', trait:'total'},
+    {text:'В кризисных ситуациях я действую уверенно.', trait:'total'},
+    {text:'Мне сложно справляться с мелкими неурядицами.', trait:'total', reverse:true},
+    {text:'Я способен сохранять продуктивность под давлением.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Стрессоустойчивость',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы отлично справляетесь со стрессом.':total>=18?'Средняя — справляетесь, но в сильном стрессе можете теряться.':'Низкая — стресс сильно влияет на вас. Рекомендуются техники релаксации.'}]
+}
+);
+</script>
+<script>
+TESTS.push(
+{
+  id:'subjective_vitality', cat:'Настроение', emoji:'⚡',
+  name:'Шкала субъективной витальности',
+  freqDays:30,
+  desc:'Уровень жизненной энергии',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую себя полным энергии и жизненных сил.', trait:'total'},
+    {text:'Я просыпаюсь с ощущением бодрости.', trait:'total'},
+    {text:'У меня достаточно сил на дела и увлечения.', trait:'total'},
+    {text:'Я чувствую постоянную усталость и упадок сил.', trait:'total', reverse:true},
+    {text:'Я ощущаю прилив энергии в течение дня.', trait:'total'},
+    {text:'Мне хватает сил на общение и активности.', trait:'total'},
+    {text:'Я часто чувствую себя истощённым.', trait:'total', reverse:true},
+    {text:'Я полон энтузиазма и желания действовать.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Субъективная витальность',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы полны энергии, это ресурс для жизни.':total>=18?'Средняя — есть усталость, но в целом справляетесь.':'Низкая — истощение. Стоит обратить внимание на отдых и здоровье.'}]
+},
+{
+  id:'happiness_deep', cat:'Эмоции', emoji:'🌈',
+  name:'Шкала глубокого счастья',
+  freqDays:30,
+  desc:'Устойчивое ощущение счастья',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я чувствую глубокое удовлетворение жизнью.', trait:'total'},
+    {text:'Даже в трудные времена я сохраняю внутренний покой.', trait:'total'},
+    {text:'Я ощущаю радость от простых моментов.', trait:'total'},
+    {text:'Мне часто грустно без причины.', trait:'total', reverse:true},
+    {text:'Я доволен тем, какой путь я прошёл.', trait:'total'},
+    {text:'Я чувствую, что живу в согласии с собой.', trait:'total'},
+    {text:'Я редко бываю счастлив.', trait:'total', reverse:true},
+    {text:'Я испытываю благодарность за свою жизнь.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Глубокое счастье',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокое — вы ощущаете устойчивое счастье.':total>=18?'Среднее — счастье есть, но не всегда.':'Низкое — стоит поработать над качеством жизни с психологом.'}]
+},
+{
+  id:'life_satisfaction_deep', cat:'Настроение', emoji:'🌟',
+  name:'Шкала удовлетворённости жизнью (расширенная)',
+  freqDays:60,
+  desc:'Насколько вы довольны своей жизнью',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'В целом я доволен своей жизнью.', trait:'total'},
+    {text:'Если бы я мог прожить жизнь заново, я бы мало что изменил.', trait:'total'},
+    {text:'Условия моей жизни отличные.', trait:'total'},
+    {text:'У меня есть всё важное, что я хочу иметь.', trait:'total'},
+    {text:'Я часто желаю, чтобы моя жизнь была другой.', trait:'total', reverse:true},
+    {text:'Мне нравится, как складывается моя жизнь.', trait:'total'},
+    {text:'Я редко чувствую удовлетворение от жизни.', trait:'total', reverse:true},
+    {text:'Я чувствую, что моя жизнь идёт в правильном направлении.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Удовлетворённость жизнью',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — вы довольны жизнью.':total>=18?'Средняя — есть что улучшить.':'Низкая — многое не устраивает, стоит поработать с психологом.'}]
+},
+{
+  id:'self_esteem_final', cat:'Личность', emoji:'👑',
+  name:'Шкала самооценки (расширенная)',
+  freqDays:60,
+  desc:'Комплексная оценка самооценки',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я в целом доволен собой.', trait:'total'},
+    {text:'Я считаю себя ценным человеком.', trait:'total'},
+    {text:'Я чувствую себя уверенно в большинстве ситуаций.', trait:'total'},
+    {text:'Мне бы хотелось больше уважать себя.', trait:'total', reverse:true},
+    {text:'Я принимаю свои недостатки.', trait:'total'},
+    {text:'Я верю в свои силы.', trait:'total'},
+    {text:'Я часто чувствую себя неудачником.', trait:'total', reverse:true},
+    {text:'Я достоин любви и уважения.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Самооценка',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокая — у вас здоровая самооценка.':total>=18?'Средняя — есть зоны сомнений.':'Низкая — рекомендуется работа над самооценкой с психологом.'}]
+},
+{
+  id:'personal_growth', cat:'Личность', emoji:'🌱',
+  name:'Шкала личностного роста',
+  freqDays:90,
+  desc:'Стремление к развитию и самореализации',
+  type:'likert',
+  scale:['Совершенно не согласен','Скорее не согласен','Затрудняюсь ответить','Скорее согласен','Полностью согласен'],
+  questions:[
+    {text:'Я стремлюсь к постоянному личностному росту.', trait:'total'},
+    {text:'Я замечаю, как меняюсь и развиваюсь с течением времени.', trait:'total'},
+    {text:'Я открыт новому опыту и знаниям.', trait:'total'},
+    {text:'Я чувствую, что застрял и не развиваюсь.', trait:'total', reverse:true},
+    {text:'Я вкладываюсь в своё развитие (книги, курсы, терапия).', trait:'total'},
+    {text:'Мне важно реализовать свой потенциал.', trait:'total'},
+    {text:'Я избегаю ситуаций, где могу чему-то научиться.', trait:'total', reverse:true},
+    {text:'Я чувствую, что становлюсь лучше как человек.', trait:'total'}
+  ],
+  interpret:(total)=>[{name:'Личностный рост',value:total,max:40,color:total>=30?'green':total>=18?'yellow':'red',
+    desc:total>=30?'Высокий — вы активно развиваетесь, это источник удовлетворения.':total>=18?'Средний — рост есть, но не всегда системный.':'Низкий — возможно, вы застряли на месте. Стоит найти источники развития.'}]
+}
+);
+</script>
+</body>
+</html>
