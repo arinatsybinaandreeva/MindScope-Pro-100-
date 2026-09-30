@@ -1,4 +1,4 @@
-# 🧠 MindScope Pro — 108 психологических тестов
+# 🧠 MindScope Pro — 100+ психологических тестов
 
 Ссылка на игру: https://arinatsybinaandreeva.github.io/MindScope-Pro-100-/
 
